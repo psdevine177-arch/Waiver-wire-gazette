@@ -234,16 +234,10 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
       <div class="fld"><label for="wk">Week</label><select id="wk"></select></div>
       <button class="btn primary" type="submit" id="go">Print edition</button>
       <button class="btn" type="button" id="regen" title="Pull the latest scores and rewrite the stories">Refresh &amp; rewrite</button>
-      <button class="btn" type="button" id="ai" hidden>Punch it up with Claude</button>
       <button class="btn" type="button" id="dl" aria-expanded="false" aria-controls="dlMenu">Download newspaper</button>
-      <button class="btn" type="button" id="more" aria-expanded="false" aria-controls="settings">Newsroom settings</button>
     </form>
     <div id="dlMenu" class="dl-menu" hidden><button class="btn primary" type="button" id="dlPdf">Full paper (PDF)</button><button class="btn" type="button" id="dlImg">Front page (image)</button><button class="btn" type="button" id="shareLink" hidden>Copy link to this edition</button></div>
     <div id="status" role="status"></div>
-    <div id="settings" class="settings" hidden>
-      <div class="fld"><label for="lore">League lore for the writers</label><textarea id="lore" placeholder="Rivalries, nicknames, running jokes. e.g. 'Nobody has beaten the commissioner since 2021' or 'Last place gets a haircut chosen by the league.' Used when Claude writes the edition. Saved in this browser for this league."></textarea></div>
-      <div class="fld" id="keyWrap"><label for="key">Anthropic API key (hosted version only)</label><input id="key" type="password" placeholder="sk-ant-…"><label for="model" style="margin-top:6px">Model</label><input id="model" value="claude-sonnet-5-5"><p>Optional. Lets the hosted app write stories with Claude. The key stays in this browser and is sent only to Anthropic's API.</p></div>
-    </div>
   </div>
 </header>
 <main class="desk"><article id="paper" class="paper" aria-live="polite"></article></main>
@@ -1045,7 +1039,7 @@ function render(){
       <span class="kicker">${esc(ls.kicker)}</span>
       <h1 class="${ls.headline.length>52?"long":""}">${esc(ls.headline)}</h1>
       <p class="dek">${esc(ls.dek)}</p>
-      <div class="byline">By ${esc(E.byline)}${E.ai?' <span class="ai-mark">· written with Claude</span>':""}</div>
+      <div class="byline">By ${esc(E.byline)}</div>
       <div class="bigscore">
         <div class="bs-side win"><span class="bs-team">${esc(lg.W.team)}</span><span class="bs-mgr">@${esc(lg.W.mgr)} · ${recStr(lg.W.after)}</span><span class="bs-pts">${f2(lg.W.pts)}</span></div>
         <div class="bs-mid">FINAL</div>
@@ -1282,91 +1276,6 @@ async function downloadPaper(kind){
   } finally { btns.forEach(b=>b.disabled=false); }
 }
 
-/* ---------------- Claude writers ---------------- */
-function factsFor(M){
-  const side = S => ({team:S.team, manager:"@"+S.mgr, points:+f2(S.pts), projected:S.proj!=null?+f2(S.proj):undefined, record_after:recStr(S.after), standings_place_after:S.rankAfter, week_rank:`${S.rank} of ${M.n}`, streak:S.streak.n?S.streak.k+S.streak.n:"",
-    top_starters:S.top.map(p=>`${p.name} (${p.pos}${p.nfl?", "+p.nfl:""}) ${f2(p.pts)}${p.proj!=null?` (proj ${f2(p.proj)})`:""}`),
-    next_opponent:(M.nextOpp[S.rid]||{}).team||null, vs_league_median:S.med||undefined});
-  const A = M.awards;
-  const angleText = (g, a) => {
-    const x = {g, W:g.W.team, L:g.L.team, ws:f2(g.W.pts), ls:f2(g.L.pts), mg:f2(g.margin), wk:M.week, n:M.n, hl:g.W.best?plast(g.W.best):""};
-    const T = ANG[a.k] || ANG.default;
-    return `${T.kicker}: ${T.line(x,a) || T.lede(x,a,()=>0)}`;
-  };
-  return {
-    league:M.leagueName, season:M.season, week:M.week, playoffs:M.playoffs,
-    median_scoring: M.median!=null ? `ON: each week every team also plays the league median (${f2(M.median)} this week). Beat it = extra win, so a team can go 2-0, 1-1 or 0-2 in a week. Records below already include median games.` : "off",
-    last_weeks_lead_angle: M.prevLead ? (ANG[M.prevLead]||{}).kicker : null,
-    games:M.games.map(g=>({id:g.id, tie:g.tie, winner:side(g.W), loser:side(g.L), margin:+f2(g.margin),
-      playoff_bubble:g.bubble||undefined,
-      angles_ranked:g.angles.filter(a=>a.score>=20).slice(0,4).map(a=>angleText(g,a)),
-      suggested_primary_angle:(ANG[g.primary.k]||ANG.default).kicker})),
-    hot_take_suggestion: M.take ? (()=>{ const c = writeColumn(M, ()=>0); return c ? {thesis:c.headline, evidence:c.body.join(" ")} : null; })() : null,
-    suggested_lead_game_id: [...M.games].sort((a,b)=>b.priority-a.priority)[0]?.id,
-    awards:{player_of_week:A.pow&&`${A.pow.name} ${f2(A.pow.pts)} for ${A.pow.team}`, bust:A.bust&&`${A.bust.name} ${f2(A.bust.pts)} on proj ${f2(A.bust.proj)} for ${A.bust.team}`, unluckiest_loser:A.unlucky&&`${A.unlucky.team} ${f2(A.unlucky.pts)}`, luckiest_winner:A.lucky&&`${A.lucky.team} ${f2(A.lucky.pts)}`},
-    standings:M.standings.map(s=>`${s.team} ${recStr(s)} PF ${f2(s.pf)}`),
-    trades_this_week:M.wire.filter(t=>t.type==="trade").map(t=>t.adds.map(a=>`${a.team} gets ${a.p.name}`).join("; "))
-  };
-}
-function promptFor(M, E, lore){
-  return `You are the sports desk of a loud, gripping tabloid sports newspaper covering a private fantasy football league among friends. Write this week's edition.
-
-VOICE: punchy tabloid headlines, vivid verbs, dramatic ledes, affectionate trash talk. Think back-page New York tabloid. Funny, never cruel; no jokes about anyone's real personal life, appearance, or identity.
-FACTS: use ONLY the numbers, players, records and results in the data below. Never invent stats, injuries, or events. Injury statuses are current listings, so say a player "is now listed Out", not when or how he got hurt. You may invent obviously satirical anonymous quotes ("a source close to the team said...").
-${lore ? `LEAGUE LORE (weave in where it fits naturally):\n${lore}\n` : ""}
-STORY SELECTION: each game has "angles_ranked" (best first) computed from how unusual each storyline is in this league. Build each story around its strongest angle and weave in the others. Keep the page varied: give different games different angle types where you can, and avoid leading with the same angle type as last week ("last_weeks_lead_angle"). The suggested lead game is a good default; override it only if another game is clearly the bigger story. Bench decisions are only the story when an angle says so.
-
-Reply with ONLY this JSON:
-{"lead":{"id":<game id>,"kicker":"<1-3 word label>","headline":"<max 11 words>","dek":"<one sentence subhead>","body":["<4-5 paragraphs, 50-90 words each>"]},
- "games":[{"id":<game id>,"kicker":"<1-3 words>","headline":"<max 10 words>","dek":"<one sentence>","body":["<2-3 paragraphs, 40-70 words each>"]}],
- "column":{"headline":"<hot take headline>","body":["<2-3 short paragraphs>"]}}
-The "column" is THE HOT TAKE by Rex Pemberton III, a loud, contrarian sports-TV talking head. It must argue a bold, debatable THESIS (a fraud call, a bold prediction, blaming the manager, declaring a trade a robbery, demanding a rule change), never a neutral recap of who is good or bad. Start from "hot_take_suggestion" unless the data supports a spicier take; back it with numbers from the data, commit fully, and end with a signature line like "I said what I said."
-"games" must include every game except the lead.
-
-DATA:
-${JSON.stringify(factsFor(M))}`;
-}
-async function aiWrite(){
-  const M = state.model; if (!M || !M.played) return;
-  const lore = $("#lore").value.trim();
-  const prompt = promptFor(M, state.edition, lore);
-  const btn = $("#ai"); btn.disabled = true;
-  setStatus("Writers are on deadline. Claude is drafting the edition (this can take a minute)…");
-  try {
-    let out;
-    if (state.sampleFn) {
-      out = await state.sampleFn.json(prompt, {modelTier:"default"});
-    } else {
-      const key = $("#key").value.trim();
-      if (!key) { openSettings(); setStatus("Add an Anthropic API key in Newsroom settings to have Claude write the edition.", true); return; }
-      const r = await fetch("https://api.anthropic.com/v1/messages", {method:"POST", headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body: JSON.stringify({model:$("#model").value.trim()||"claude-sonnet-5-5", max_tokens:8000, messages:[{role:"user", content:prompt}]})});
-      const data = await r.json();
-      if (!r.ok) throw {code:"api", message:(data.error && data.error.message) || ("HTTP "+r.status)};
-      const text = (data.content||[]).map(c=>c.text||"").join("");
-      out = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}")+1));
-    }
-    applyAI(out);
-    setStatus("Edition rewritten by Claude. Hit “Print edition” to go back to the house style.");
-  } catch(e) {
-    const msg = {not_granted:"Claude access wasn't allowed for this page.", rate_limited:"Claude is busy. Try again in a bit.", invalid_json:"The writers filed a garbled story. Try again.", cancelled:"Stopped."}[e && e.code] || ("Claude couldn't write the edition: " + ((e && e.message) || "unknown error"));
-    setStatus(msg, true);
-    if (e && e.code === "not_granted") $("#ai").hidden = true;
-  } finally { btn.disabled = false; }
-}
-function applyAI(out){
-  const E = state.edition, ids = new Set(state.model.games.map(g=>g.id));
-  const clean = s => ({kicker:String(s.kicker||"Final").slice(0,30), headline:String(s.headline||""), dek:String(s.dek||""), body:(Array.isArray(s.body)?s.body:[s.body]).filter(Boolean).map(String)});
-  if (out && out.lead && ids.has(+out.lead.id) && out.lead.headline) {
-    E.leadId = +out.lead.id;
-    E.stories[E.leadId] = {...E.stories[E.leadId], ...clean(out.lead)};
-  }
-  for (const s of (out && out.games) || []) if (ids.has(+s.id) && s.headline) E.stories[+s.id] = {...E.stories[+s.id], ...clean(s)};
-  if (out && out.column && out.column.headline) E.column = {headline:String(out.column.headline), body:(out.column.body||[]).map(String), pundit:PUNDIT};
-  E.ai = true;
-  render();
-}
-
 /* ---------------- Sample league ---------------- */
 function sampleRaw(){
   const r = rng(20260928);
@@ -1430,9 +1339,8 @@ function sampleRaw(){
 }
 
 /* ---------------- App state + wiring ---------------- */
-const state = {model:null, edition:null, sample:true, early:false, sampleFn:null, raw:null, leagueId:null, nflState:null};
+const state = {model:null, edition:null, sample:true, early:false, raw:null, leagueId:null, nflState:null};
 function setStatus(msg, err){ const s=$("#status"); s.textContent = msg||""; s.classList.toggle("err", !!err); }
-function openSettings(){ $("#settings").hidden=false; $("#more").setAttribute("aria-expanded","true"); }
 const wkSel = $("#wk");
 for (let w=1; w<=18; w++) wkSel.add(new Option("Week "+w, w));
 
@@ -1452,9 +1360,6 @@ function show(raw, week, isSample, variant = 0){
   $("#shareLink").hidden = isSample;
   const ns = state.nflState, day = new Date().getDay();
   state.early = !isSample && ns && +ns.week === week && (day===0 || day===1);
-  const loreKey = "wwg_lore_" + state.model.leagueId;
-  $("#lore").value = store.get(loreKey) || "";
-  $("#lore").dataset.key = loreKey;
   render();
 }
 
@@ -1500,13 +1405,6 @@ $("#f").addEventListener("submit", e => {
   resolveInput();
 });
 $("#lg").addEventListener("change", () => loadLeague($("#lg").value, +wkSel.value));
-$("#more").addEventListener("click", () => { const s=$("#settings"); s.hidden=!s.hidden; $("#more").setAttribute("aria-expanded", String(!s.hidden)); });
-$("#lore").addEventListener("input", e => { if (e.target.dataset.key) store.set(e.target.dataset.key, e.target.value); });
-$("#key").value = store.get("wwg_key") || "";
-$("#key").addEventListener("input", e => { store.set("wwg_key", e.target.value.trim()); $("#ai").hidden = !(state.sampleFn || e.target.value.trim()); });
-$("#model").value = store.get("wwg_model") || "claude-sonnet-5-5";
-$("#model").addEventListener("input", e => store.set("wwg_model", e.target.value.trim()));
-$("#ai").addEventListener("click", aiWrite);
 $("#regen").addEventListener("click", () => {
   const v = (state.variant || 0) + 1;
   if (state.sample || !state.leagueId) { show(state.raw, state.week || 3, true, v); setStatus("Rewritten. Same scores, fresh copy."); return; }
@@ -1526,13 +1424,6 @@ $("#dlImg").addEventListener("click", () => downloadPaper("img"));
 // Boot: sample edition first, then look for live context
 show(sampleRaw(), 3, true);
 wkSel.value = "3";
-$("#ai").hidden = !$("#key").value.trim();
-(async () => {
-  if (window.claude && window.claude.use) {
-    $("#keyWrap").hidden = true;
-    try { const s = await window.claude.use("sample"); if (s) { state.sampleFn = s; $("#ai").hidden = false; } } catch(e){}
-  }
-})();
 (async () => {
   try {
     state.nflState = await getJSON("/state/nfl");

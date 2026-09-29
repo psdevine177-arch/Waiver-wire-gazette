@@ -13,7 +13,7 @@
 /* Layout: a dark "press room" control strip over a single tabloid front page — lead story + right rail, then game summaries, wire, power poll. Single deliberate newsprint look. */
 :root{
   --desk:#2a2a2c; --press:#161617; --press-fg:#e9e7df; --press-muted:#9c9a92;
-  --paper:#efeee8; --ink:#141414; --muted:#56544e; --tint:#e1dfd6; --red:#c3161c; --red-ink:#fff;
+  --paper:#efeee8; --ink:#141414; --muted:#56544e; --tint:#e1dfd6; --red:#c3161c; --red-ink:#fff; --green:#1f6b3a; --green2:#3e6b50; --amber:#8a6a00; --gray:#6b6860;
   --display:"Big Shoulders Display","Arial Narrow","Helvetica Neue Condensed",Impact,sans-serif;
   --body:"Source Serif 4",Georgia,"Times New Roman",serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -217,6 +217,74 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .np-pp .q{font-size:calc(var(--fs)*.85);color:var(--np-mute);font-style:italic}
 .np-foot{margin-top:auto;border-top:4px double var(--np-rule);padding-top:6px;font-family:var(--mono);font-size:11px;color:var(--np-mute);text-align:center}
 .dl-menu{display:flex;flex-wrap:wrap;gap:8px}
+/* Playoff Picture (web) */
+.po-hd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 18px;align-items:end;border-bottom:1px solid var(--ink);padding:12px 0 10px}
+.po-hd .t{font-family:"Manufacturing Consent","Old English Text MT",Georgia,serif;font-size:clamp(40px,6vw,60px);line-height:1}
+.po-hd .by{font-style:italic;font-size:16px;color:var(--muted);padding-bottom:6px;min-width:0}
+.po-hd .by b{display:block;font-family:var(--mono);font-style:normal;font-weight:600;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);margin-bottom:3px}
+.po h3{font-family:var(--display);font-weight:900;font-size:21px;text-transform:uppercase;border-bottom:3px solid var(--ink);margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.po h3 small{font-family:var(--mono);font-weight:400;font-size:10px;letter-spacing:.12em;color:var(--muted)}
+.po-row1{margin-top:18px}
+.po-br{display:grid;grid-template-columns:repeat(var(--rounds),minmax(0,1fr));gap:0 34px;align-items:stretch}
+.po-rd{display:flex;flex-direction:column;justify-content:space-around;gap:10px;position:relative;padding-top:26px;min-width:0}
+.po-rd h4{position:absolute;top:0;left:0;right:0;font-family:var(--mono);font-weight:600;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;margin:0}
+.po-m{border:2px solid var(--ink);background:#f7f6f1}
+.po-s{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 8px;font-family:var(--display);font-weight:800;font-size:16px;text-transform:uppercase;letter-spacing:.02em}
+.po-s + .po-s{border-top:1px solid #bdbab0}
+.po-s .sd{font-family:var(--mono);font-weight:600;font-size:12px;color:var(--red);text-align:center}
+.po-s .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.po-s .rc{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--muted)}
+.po-s.tbd{color:var(--muted);font-family:var(--body);font-style:italic;font-weight:400;font-size:14px;text-transform:none}
+.po-bye{font-family:var(--mono);font-weight:600;font-size:10px;letter-spacing:.12em;color:var(--green);text-transform:uppercase;padding:3px 8px;border-top:1px dashed #bdbab0}
+.po-champ{border:3px solid var(--ink);background:var(--ink);color:var(--paper);text-align:center;padding:14px 8px}
+.po-champ b{display:block;font-family:var(--display);font-weight:900;font-size:24px;text-transform:uppercase;letter-spacing:.04em}
+.po-champ span{font-style:italic;font-size:14px;color:#cfcabd}
+.po-note{font-style:italic;font-size:13px;color:var(--muted);margin-top:10px}
+.po-row2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:34px;margin-top:26px}
+.po-row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;margin-top:26px}
+.po-scroll{overflow-x:auto;min-width:0}
+.po-odds{width:100%;border-collapse:collapse;font-size:14px}
+.po-odds th{font-family:var(--mono);font-weight:600;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--ink);padding:4px}
+.po-odds td{padding:6px 4px;border-bottom:1px solid #bdbab0;vertical-align:middle}
+.po-odds td.tm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.po-odds td.n{font-family:var(--mono);font-weight:600;font-size:13px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.po-odds tr.cut td{border-bottom:2px solid var(--red)}
+.po-bar{position:relative;height:14px;background:var(--tint);min-width:80px}
+.po-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.po-bar span{position:absolute;right:4px;top:0;font-family:var(--mono);font-weight:600;font-size:11px;line-height:14px;color:var(--ink)}
+.po-bar.hi span{color:var(--paper);right:auto;left:4px}
+.chip{display:inline-block;font-family:var(--display);font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px 0;color:#fff;white-space:nowrap}
+.c-clinched,.c-lock{background:var(--green)} .c-in{background:var(--green2)} .c-bubble{background:var(--amber)} .c-miracle{background:var(--red)} .c-out{background:var(--gray)}
+.po-list div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #bdbab0;padding:5px 0;font-size:15px}
+.po-list div b{font-family:var(--mono);font-weight:600;font-size:13px}
+.po-list .lbl{font-family:var(--mono);font-weight:600;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--red);border:0;padding:8px 0 2px}
+.po-gotw{border:3px solid var(--ink);padding:12px 14px}
+.po-gotw .v{font-family:var(--display);font-weight:900;font-size:26px;line-height:1;text-transform:uppercase;margin:6px 0 10px}
+.po-gotw .v em{font-style:normal;color:var(--red);font-size:18px;margin:0 6px}
+.po-sw{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:14px}
+.po-sw b{font-family:var(--mono);font-weight:600;font-size:12px;text-transform:uppercase}
+.po-cl{list-style:none;margin:0;padding:0}
+.po-cl li{border-bottom:1px solid #bdbab0;padding:6px 0;font-size:15px;line-height:1.35}
+.po-cl li b{font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-right:6px}
+.po-cl .y{color:var(--green)} .po-cl .x{color:var(--red)} .po-cl .q{color:var(--amber)}
+.po-byes{background:var(--tint);padding:12px 14px;font-size:14px;line-height:1.45}
+.po-take{margin-top:26px;border-top:3px solid var(--ink);padding-top:14px}
+.po-take h2{font-family:var(--display);font-weight:900;font-size:clamp(28px,4vw,38px);line-height:.95;text-transform:uppercase;margin:8px 0 10px;text-wrap:balance}
+.po-take .body{columns:3 260px;column-gap:24px;font-size:16px;line-height:1.5}
+.po-take .body p{margin:0 0 .7em}
+@media (max-width:820px){ .po-br,.po-row2,.po-row3{grid-template-columns:minmax(0,1fr)} .po-rd{padding-top:24px;margin-top:14px} .po-hd{grid-template-columns:minmax(0,1fr)}
+  .po-odds th:nth-child(3),.po-odds td:nth-child(3),.po-odds th:nth-child(5),.po-odds td:nth-child(5){display:none} .po-bar{min-width:56px} .po-odds td.tm{white-space:normal;font-size:13.5px} .chip{font-size:10px} }
+/* Playoff Picture (print) */
+.np-po-br{display:grid;grid-template-columns:repeat(var(--rounds),minmax(0,1fr));gap:0 28px}
+.np-po-br .po-rd{padding-top:22px}
+.np-po-br .po-s{font-size:calc(var(--fs)*1.05);padding:4px 7px}
+.np-po-2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:28px;margin-top:14px}
+.np-po .po-odds{font-size:calc(var(--fs)*.9)}
+.np-po .po-odds td{padding:4px}
+.np-po .po-take h2{font-size:calc(var(--fs)*2.2)}
+.np-po .po-take .body{font-size:var(--fs);line-height:1.45}
+.np-po .po-cl li,.np-po .po-list div{font-size:calc(var(--fs)*.9)}
+
 /* Horoscopes (web) */
 .horo-hd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 18px;align-items:end;border-bottom:1px solid var(--ink);padding:12px 0 10px}
 .horo-hd .t{font-family:"Manufacturing Consent","Old English Text MT",Georgia,serif;font-size:clamp(40px,6vw,60px);line-height:1}
@@ -341,13 +409,25 @@ async function loadProjections(season, week, key){
   if (!Object.keys(out).length) throw new Error("no projections");
   return out;
 }
+// Which NFL teams are on bye in a given week: every team defense gets a projection unless its team isn't playing.
+// Tiny request (32 rows). Returns null if the answer doesn't look sane, so a bad feed never prints wrong byes.
+const NFL32 = ["ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN","DET","GB","HOU","IND","JAX","KC","LV","LAC","LAR","MIA","MIN","NE","NO","NYG","NYJ","PHI","PIT","SF","SEA","TB","TEN","WAS"];
+async function loadByes(season, week){
+  const data = await getJSON(`/projections/nfl/${season}/${week}?season_type=regular&position[]=DEF`, "https://api.sleeper.app");
+  const rows = Array.isArray(data) ? data : Object.entries(data||{}).map(([player_id,stats])=>({player_id, stats}));
+  const playing = new Set();
+  for (const r of rows) { const t = (r && (r.team || (r.player && r.player.team) || r.player_id)) || ""; if (NFL32.includes(String(t))) playing.add(String(t)); }
+  const byes = NFL32.filter(t=>!playing.has(t));
+  return playing.size >= 24 && byes.length <= 8 ? byes : null;
+}
 async function fetchLeagueRaw(id, week, status){
   status(`Pulling league ${id}…`);
   const [league, users, rosters] = await Promise.all([getJSON(`/league/${id}`), getJSON(`/league/${id}/users`), getJSON(`/league/${id}/rosters`)]);
   if (!league) throw new Error(`No Sleeper league found with ID ${id}.`);
   status(`Pulling box scores and transactions through week ${week}…`);
   const weeks = {}, txnsByWeek = {};
-  const upto = Math.min(week+1, 18);
+  const po = league.settings && +league.settings.playoff_week_start || 0;
+  const upto = Math.min(18, Math.max(week+1, po && week < po ? po-1 : 0));   // future regular-season weeks feed the Playoff Picture
   await Promise.all(Array.from({length:upto},(_,i)=>i+1).map(async w => {
     weeks[w] = await getJSON(`/league/${id}/matchups/${w}`).catch(()=>[]);
     if (w <= week) txnsByWeek[w] = await getJSON(`/league/${id}/transactions/${w}`).catch(()=>[]);
@@ -356,7 +436,12 @@ async function fetchLeagueRaw(id, week, status){
   const key = projKey(league), proj = {};
   await Promise.all([week, week-1, week+1].filter(w=>w>=1 && w<=18).map(async w => { try { proj[w] = await loadProjections(league.season, w, key); } catch(e){} }));
   const players = await loadPlayers().catch(()=>({}));
-  return {league, users: users||[], rosters: rosters||[], weeks, txnsByWeek, proj, players};
+  const byeWeeks = {};
+  if (po && week < po - 1 && po - 1 - week <= 6) {
+    status("Checking the bye-week schedule…");
+    await Promise.all(Array.from({length:po-1-week},(_,i)=>week+1+i).map(async w => { try { const b = await loadByes(league.season, w); if (b) byeWeeks[w] = b; } catch(e){} }));
+  }
+  return {league, users: users||[], rosters: rosters||[], weeks, txnsByWeek, proj, players, byeWeeks};
 }
 
 /* ---------------- Model + story angles ---------------- */
@@ -824,6 +909,131 @@ function buildModel(raw, week, opts = {}){
   const maxWk = Math.max(1, ...Object.values(weekPts));
   const power = standings.map(s=>{ const gp = s.w+s.l+s.t || 1; return {...s, wk:weekPts[s.rid]||0, score: 0.5*((s.w+s.t/2)/gp) + 0.3*(s.pf/maxPF) + 0.2*((weekPts[s.rid]||0)/maxWk)}; }).sort((a,b)=>b.score-a.score);
 
+  const P_ = P;
+
+  // ---- Playoff Picture: seeds, bracket, simulated odds (byes factored in), clinch math ----
+  const playoff = (() => {
+    const P = playoffLine, regLast = po ? po - 1 : 0;
+    if (!po || week >= po || numTeams < 4 || P < 2 || P >= numTeams) return null;
+    const weeksLeft = regLast - week;
+    const stage = weeksLeft <= 6 ? (weeksLeft <= 3 ? 3 : 2) : 0;
+    if (!stage) return null;
+    const rounds = Math.ceil(Math.log2(P)), B = Math.pow(2, rounds), byes = B - P;
+    const rt = league.settings && +league.settings.playoff_round_type || 0;
+    const roundWeek = r => po + (rt === 2 ? 2*r : r);
+    const rids = Object.keys(teams).map(String);
+    const seedsNow = standings.slice(0, P);
+    const W0 = r => rec[r].w + rec[r].t/2;
+    // ---------- seeding order + bracket shape ----------
+    let order = [1, 2];
+    while (order.length < B) { const n = order.length*2 + 1; order = order.flatMap(s => [s, n - s]); }
+    const seedTeam = s => s <= P ? standings[s-1] : null;
+    const bracket = [];
+    let slots = order.map(s => ({seed:s, team:seedTeam(s)}));
+    for (let r = 0; r < rounds; r++) {
+      const ms = [];
+      for (let i=0; i<slots.length; i+=2) ms.push([slots[i], slots[i+1]]);
+      bracket.push({label: r === rounds-1 ? "Championship" : r === rounds-2 ? "Semifinals" : `Round ${r+1}`, week: roundWeek(r), matches: ms});
+      slots = ms.map(([a,b]) => {
+        if (a.team && (!b || !b.team)) return a;               // bye: the seed advances
+        if (b.team && (!a || !a.team)) return b;
+        return {tbd: `Winner ${Math.min(a.seed,b.seed)} / ${Math.max(a.seed,b.seed)}`, seeds:[a.seed,b.seed]};
+      });
+    }
+    // ---------- team strength ----------
+    const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+    const sdev = a => { const m = mean(a); return Math.sqrt(mean(a.map(x=>(x-m)**2))); };
+    const past = r => Array.from({length:Math.min(week, regLast)},(_,i)=>i+1).map(w=>scores[r][w]).filter(v=>v!=null && v>0);
+    const all = rids.flatMap(past), lgMean = mean(all) || 100, lgSd = sdev(all) || 25;
+    const str = {};
+    for (const r of rids) { const sc = past(r); const m = sc.length ? mean(sc) : lgMean; const l3 = sc.length ? mean(sc.slice(-3)) : m;
+      str[r] = {mu: sc.length ? 0.6*m + 0.4*l3 : lgMean, sd: Math.max(12, sc.length > 1 ? 0.5*sdev(sc) + 0.5*lgSd : lgSd)}; }
+    // players' typical output (for bye fill-ins)
+    const pts = {};
+    for (let w=1; w<=week; w++) for (const m of (weeks[w]||[])) for (const [id,v] of Object.entries(m.players_points||{})) if (+v > 0) (pts[id] = pts[id] || []).push(+v);
+    const pavg = id => pts[id] ? mean(pts[id]) : 0;
+    const rosterOf = Object.fromEntries(rosters.map(r=>[String(r.roster_id), r]));
+    const lineup = r => { const R0 = rosterOf[r] || {}; const nb = notBench[r] || new Set();
+      const starters = (R0.starters||[]).map((id,i)=>({id, slot:slots_[i]})).filter(x=>x.id && x.id!=="0");
+      const bench = (R0.players||[]).filter(id=>!(R0.starters||[]).includes(id) && !nb.has(id));
+      return {starters, bench}; };
+    const slots_ = (league.roster_positions||[]).filter(s=>!["BN","IR","TAXI"].includes(s));
+    // next week: realistic best lineup from projections (byes/injuries auto-filled from the bench)
+    const nextProj = (raw.proj||{})[week+1] || null;
+    const nextMu = {};
+    if (nextProj && weeksLeft > 0) for (const r of rids) {
+      const R0 = rosterOf[r]; if (!R0) continue;
+      const pool = (R0.players||[]).filter(id=>!(notBench[r]||new Set()).has(id)).map(id=>({id, ...P_(id), pj: nextProj[id] || 0})).filter(p=>p.pj > 0 && !INJURED.has(p.inj));
+      const order2 = [...slots_].sort((a,b)=>(ELIG[a]||[a]).length - (ELIG[b]||[b]).length);
+      const used = new Set(); let tot = 0, filled = 0;
+      for (const s of order2) { const el = ELIG[s] || [s]; const best = pool.filter(p=>!used.has(p.id) && el.includes(p.pos)).sort((a,b)=>b.pj-a.pj)[0]; if (best) { used.add(best.id); tot += best.pj; filled++; } }
+      if (filled >= slots_.length*0.7) nextMu[r] = 0.5*str[r].mu + 0.5*tot;
+    }
+    // later weeks: bye dips (starter on bye minus best bench fill-in)
+    const byeW = raw.byeWeeks || {}, hasByes = Object.keys(byeW).length > 0;
+    const dip = {}, dipNote = {};
+    for (const r of rids) { dip[r] = {}; const L = lineup(r);
+      for (let fw = week+1; fw <= regLast; fw++) { const off = new Set(byeW[fw] || []); if (!off.size) continue;
+        const used = new Set(); let d = 0; const lost = [];
+        for (const s of L.starters) { const p = P_(s.id); if (!off.has(p.nfl)) continue;
+          const el = ELIG[s.slot] || [p.pos];
+          const rep = L.bench.filter(id=>!used.has(id) && el.includes(P_(id).pos) && !off.has(P_(id).nfl) && !INJURED.has(P_(id).inj)).sort((a,b)=>pavg(b)-pavg(a))[0];
+          if (rep) used.add(rep);
+          const loss = Math.max(0, pavg(s.id) - (rep ? pavg(rep) : 0)); d += loss; lost.push(p);
+        }
+        if (d > 0) { dip[r][fw] = d; if (!dipNote[r] || d > dipNote[r].d) dipNote[r] = {d, w:fw, lost}; }
+      }
+    }
+    // ---------- simulate the rest of the regular season ----------
+    const future = []; for (let fw = week+1; fw <= regLast; fw++) { const pr = pairs(fw); if (pr.length) future.push({w:fw, pr}); }
+    const N = future.length ? 4000 : 1;
+    const R2 = rng(hash(league.league_id + ":playoffs:" + week));
+    const normal = () => { let u = 0; while (!u) u = R2(); return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*R2()); };
+    const make = {}, bye = {}, seedCt = {}, rankCt = {}, first = {}, cw = {}, cl = {};
+    for (const r of rids) { make[r]=0; bye[r]=0; first[r]=0; seedCt[r]={}; rankCt[r]={}; cw[r]={n:0,m:0}; cl[r]={n:0,m:0}; }
+    const nextPairs = future.length && future[0].w === week+1 ? future[0].pr : [];
+    const nextWon = {};
+    for (let s = 0; s < N; s++) {
+      const w = {}, pf = {}; for (const r of rids) { w[r] = W0(r); pf[r] = rec[r].pf; }
+      for (const f of future) {
+        const sc = {};
+        for (const g of f.pr) for (const r of [String(g.a.roster_id), String(g.b.roster_id)]) {
+          const base = (f.w === week+1 && nextMu[r] != null ? nextMu[r] : str[r].mu) - (dip[r][f.w] || 0);
+          sc[r] = Math.max(20, base + str[r].sd * normal()); pf[r] += sc[r];
+        }
+        for (const g of f.pr) { const a = String(g.a.roster_id), b = String(g.b.roster_id);
+          if (sc[a] > sc[b]) w[a]++; else if (sc[b] > sc[a]) w[b]++; else { w[a]+=.5; w[b]+=.5; }
+          if (f.w === week+1) { nextWon[a] = sc[a] > sc[b]; nextWon[b] = sc[b] > sc[a]; } }
+        if (medianOn) { const v = Object.values(sc).sort((x,y)=>x-y), k = v.length; const md = k%2 ? v[(k-1)/2] : (v[k/2-1]+v[k/2])/2; for (const r in sc) if (sc[r] > md) w[r]++; }
+      }
+      const ranked = [...rids].sort((a,b)=>w[b]-w[a] || pf[b]-pf[a]);
+      ranked.forEach((r,i)=>{ rankCt[r][i+1] = (rankCt[r][i+1]||0) + 1; if (i < P) { make[r]++; seedCt[r][i+1] = (seedCt[r][i+1]||0)+1; } if (i < byes) bye[r]++; if (i === 0) first[r]++; });
+      for (const g of nextPairs) for (const r of [String(g.a.roster_id), String(g.b.roster_id)]) { const c = nextWon[r] ? cw[r] : cl[r]; c.n++; if (ranked.indexOf(r) < P) c.m++; }
+    }
+    // ---------- exact clinch / elimination (ties treated as danger) ----------
+    const left = {}; for (const r of rids) left[r] = future.filter(f=>f.pr.some(g=>String(g.a.roster_id)===r || String(g.b.roster_id)===r)).length * (medianOn ? 2 : 1);
+    const maxW = r => W0(r) + left[r];
+    const clinched = r => rids.filter(q=>q!==r && maxW(q) >= W0(r)).length < P;
+    const clinchedBye = r => byes > 0 && rids.filter(q=>q!==r && maxW(q) >= W0(r)).length < byes;
+    const elim = r => rids.filter(q=>q!==r && W0(q) > maxW(r)).length >= P;
+    const pct = r => make[r] / N;
+    const mode = obj => { let best = null, n = -1; for (const [k,v] of Object.entries(obj)) if (v > n) { n = v; best = +k; } return best; };
+    const table = standings.map((s,i)=>{ const r = String(s.rid);
+      const p = clinched(r) ? 1 : elim(r) ? 0 : pct(r);
+      const tier = clinched(r) ? "clinched" : elim(r) ? "out" : p >= 0.99 ? "lock" : p >= 0.75 ? "in" : p >= 0.15 ? "bubble" : "miracle";
+      return {rid:r, team:s.team, mgr:s.mgr, rec:recStr(s), seed:i+1, p, pBye: byes ? (clinchedBye(r) ? 1 : bye[r]/N) : 0, p1: first[r]/N, likely: mode(rankCt[r]), tier,
+        mu: str[r].mu, winP: cw[r].n ? cw[r].m/cw[r].n : null, loseP: cl[r].n ? cl[r].m/cl[r].n : null, dipNote: dipNote[r] || null, clinched: clinched(r), clinchedBye: clinchedBye(r), elim: elim(r)}; });
+    const byRid = Object.fromEntries(table.map(t=>[t.rid,t]));
+    // game of the week: biggest playoff-odds swing
+    let gotw = null;
+    for (const g of nextPairs) { const a = byRid[String(g.a.roster_id)], b = byRid[String(g.b.roster_id)]; if (!a || !b || a.winP==null || b.winP==null || a.loseP==null || b.loseP==null) continue;
+      const sw = (a.winP - a.loseP) + (b.winP - b.loseP); if (sw > 0.08 && (!gotw || sw > gotw.sw)) gotw = {a, b, sw}; }
+    const gb = (a, b) => (W0(a) - W0(b));
+    const cutTeam = standings[P-1], outTeam = standings[P];
+    return {stage, P, byes, weeksLeft, regLast, po, rounds, bracket, table, gotw, hasByes, sims: N,
+      cutGap: cutTeam && outTeam ? gb(String(cutTeam.rid), String(outTeam.rid)) : 0};
+  })();
+
   const wire = (txnsByWeek[week]||[]).filter(t=>t.status==="complete").map(t=>({
     type:t.type, bid:t.settings && t.settings.waiver_bid,
     adds:Object.entries(t.adds||{}).map(([pid,rid])=>({p:P(pid), team:tname(rid)})),
@@ -834,7 +1044,7 @@ function buildModel(raw, week, opts = {}){
     leagueId: league.league_id, leagueName: league.name || "Fantasy League", season: league.season, week, po,
     playoffs: !!(po && week >= po), hasProj: !!proj, prevLead,
     medianOn, median: weekMedian ? weekMedian.med : null, games, played, n, numTeams,
-    awards:{pow, beat, bust:bustA, dud, blund, unlucky, lucky, top}, take, standings, power, playoffLine, wire, nextOpp, horo
+    awards:{pow, beat, bust:bustA, dud, blund, unlucky, lucky, top}, take, standings, power, playoffLine, wire, nextOpp, horo, playoff
   };
 }
 
@@ -1347,6 +1557,69 @@ function writeHoroscopes(M, variant){
   return {forWeek: M.horo.forWeek, items};
 }
 
+
+/* ---------------- Playoff Picture (Dr. Seedwell, Bracketologist) ---------------- */
+const NUMW = ["zero","one","two","three","four","five","six","seven","eight","nine","ten"];
+const numw = n => NUMW[n] || String(n);
+const Cap = s => s[0].toUpperCase() + s.slice(1);
+const pctS = p => p >= 0.995 && p < 1 ? ">99%" : p > 0 && p < 0.005 ? "<1%" : `${Math.round(p*100)}%`;
+function writePlayoffs(M, variant){
+  const X = M.playoff; if (!X || X.stage < 2) return null;
+  const r = rng(hash(`${M.leagueId}:${M.week}:po${variant ? ":v"+variant : ""}`));
+  const T = X.table, P = X.P, top = T[0];
+  const contenders = T.filter(t=>!t.clinched && !t.elim && t.p > 0.1 && t.p < 0.9);
+  const locked = T.filter(t=>t.p >= 0.9).length;
+  const chairs = Math.max(0, P - locked);
+  let headline;
+  if (X.weeksLeft === 0) headline = `The bracket is set. Let the chaos begin.`;
+  else if (contenders.length >= 3 && chairs >= 1) headline = `${Cap(numw(contenders.length))} teams, ${chairs === 1 ? "one chair" : numw(chairs) + " chairs"}: the fight for ${chairs === 1 ? `the ${ord(P)} seed` : `the last ${numw(chairs)} spots`}`;
+  else if (X.byes && T.filter(t=>t.pBye > 0.1 && t.pBye < 0.9).length >= 2) headline = `Forget the playoffs. The real race is for a bye.`;
+  else headline = pick(r, [`${top.team} and everybody else`, `The field is taking shape. Mostly.`]);
+  const body = [];
+  if (top.p1 >= 0.8 || top.clinched) body.push(`I have ${top.team} locked into the 1 seed. ${top.clinched ? "They've clinched a spot already" : `They finish first in ${pctS(top.p1)} of my simulations`}, and nobody is catching a ${top.rec} team without help.`);
+  else body.push(`The 1 seed is still up for grabs. ${top.team} holds it at ${top.rec}, but only finishes first in ${pctS(top.p1)} of my simulations. That's not a lead. That's a rental.`);
+  const holder = T[P-1], chaser = T[P];
+  if (X.weeksLeft > 0 && holder && chaser) {
+    const race = T.filter(t=>!t.clinched && !t.elim && t.p > 0.05 && t.p < 0.95 && t.seed >= P).sort((a,b)=>b.p-a.p);
+    const best = race[0];
+    const others = race.filter(t=>t.rid !== holder.rid).slice(0,2);
+    const list = others.map(t=>`${t.team} (${pctS(t.p)})`).join(" and ");
+    let p2 = `The real story is the ${ord(P)} seed. ${holder.team} holds it today at ${holder.rec}, with ${chaser.team} ${X.cutGap === 0 ? "level on record" : `${X.cutGap} game${X.cutGap===1?"":"s"} back`}.`;
+    if (best && best.rid !== holder.rid) p2 += ` My gut says ${holder.team}. My spreadsheet says ${best.team}, at ${pctS(best.p)} to get in. I have never once trusted my gut.`;
+    else if (holder.p < 0.5) p2 += ` Holding it and keeping it are different things: ${holder.team} only makes the field in ${pctS(holder.p)} of my simulations${list ? `, with ${list} breathing down its neck` : ""}.`;
+    else p2 += ` My numbers agree, ${pctS(holder.p)} to get in${list ? `, but ${list} are not going quietly` : ""}.`;
+    body.push(p2);
+  }
+  const contendersT = T.filter(t=>t.p >= 0.5).sort((a,b)=>b.mu-a.mu);
+  const champ = contendersT[0], runner = contendersT[1];
+  const sleeper = T.filter(t=>t.seed >= 3 && t.seed <= P && champ && t.rid !== champ.rid && (!runner || t.rid !== runner.rid)).sort((a,b)=>b.mu-a.mu)[0];
+  let p3 = champ && runner ? `Title pick: ${champ.team} over ${runner.team}.` : champ ? `Title pick: ${champ.team}.` : "";
+  if (sleeper) p3 += ` Upset special: ${sleeper.team} as the ${ord(sleeper.seed)} seed, bouncing somebody who thought they were safe.`;
+  if (p3) body.push(p3);
+  // clinch watch
+  const cl = [];
+  for (const t of T) {
+    if (t.clinchedBye) cl.push({k:"y", l:"Clinched", t:`${t.team} ${X.weeksLeft ? "has locked up" : "earned"} a first-round bye.`});
+    else if (t.clinched) cl.push({k:"y", l:"Clinched", t:`${t.team} has clinched a playoff spot.`});
+  }
+  for (const t of T) if (!t.clinched && !t.elim && t.winP != null && t.winP >= 0.995 && t.p < 0.99) cl.push({k:"q", l:"Win and in", t:`A win next week all but locks up a spot for ${t.team}.`});
+  for (const t of T) if (!t.clinched && !t.elim && t.loseP != null && t.loseP <= 0.005 && t.p > 0.005) cl.push({k:"x", l:"On the brink", t:`A loss next week would all but end ${poss(t.team)} season.`});
+  const outs = T.filter(t=>t.elim);
+  if (outs.length) cl.push({k:"x", l:"Eliminated", t:`${outs.map(t=>t.team).join(", ")}. ${outs.length > 1 ? "Thoughts and prayers to all of them." : "Thoughts and prayers."}`});
+  if (!cl.length) cl.push({k:"q", l:"Status", t:"Nothing's decided yet. Everyone is still alive, technically."});
+  // bye note
+  let byeNote;
+  if (!X.weeksLeft) byeNote = "";
+  else if (!X.hasByes) byeNote = "The bye-week schedule couldn't be loaded, so these odds lean on scoring history alone.";
+  else {
+    const hit = T.filter(t=>t.dipNote && !t.elim).sort((a,b)=>b.dipNote.d-a.dipNote.d)[0];
+    const clean = T.filter(t=>!t.dipNote && !t.elim && t.p > 0.05 && t.p < 0.95);
+    byeNote = hit ? `${hit.team} loses ${hit.dipNote.lost.slice(0,2).map(pname).join(" and ")} to byes in Week ${hit.dipNote.w}, about ${an(Math.round(hit.dipNote.d))} ${Math.round(hit.dipNote.d)}-point hit after bench fill-ins.` : "No contender loses a key starter to a bye the rest of the way.";
+    if (clean[0]) byeNote += ` ${poss(clean[0].team)} schedule is bye-free the rest of the way.`;
+  }
+  return {headline, body, clinch: cl.slice(0,6), byeNote, champ: champ && runner ? `${champ.team} over ${runner.team}` : champ ? champ.team : null};
+}
+
 function writeEdition(M, variant = 0){
   const V = variant ? ":v" + variant : "";
   const r = rng(hash(M.leagueId + ":" + M.week + V));
@@ -1355,8 +1628,41 @@ function writeEdition(M, variant = 0){
   const ed = {used:new Set(), slot:0, base:hash(M.leagueId + V), step:Math.max(7, M.games.length*2+1)};
   const order = [lead, ...M.games.filter(g=>g!==lead)].filter(Boolean);
   for (const g of order) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id+V)), g===lead, ed);
-  return {leadId: lead ? lead.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), horo: writeHoroscopes(M, variant), ai:false};
+  return {leadId: lead ? lead.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), horo: writeHoroscopes(M, variant), po: writePlayoffs(M, variant), ai:false};
 }
+
+
+// ---------- Playoff Picture rendering (shared by web + print) ----------
+function poSlot(s){ if (!s) return ""; if (s.team) return `<div class="po-s"><span class="sd">${s.seed}</span><span class="nm">${esc(s.team.team)}</span><span class="rc">${recStr(s.team)}</span></div>`; if (s.tbd) return `<div class="po-s tbd"><span></span><span>${esc(s.tbd)}</span><span></span></div>`; return ""; }
+function poBracket(X, pick){
+  return X.bracket.map((rd, i) => `<div class="po-rd"><h4>${rd.label} · Wk ${rd.week}</h4>${
+    i === X.bracket.length - 1
+      ? `<div class="po-champ"><b>🏆 The Final</b><span>${pick ? `Dr. Seedwell's pick: ${esc(pick)}` : "To be decided"}</span></div>`
+      : rd.matches.map(([a,b]) => { const aT = a && (a.team || a.tbd), bT = b && (b.team || b.tbd);
+          if (aT && !bT) return `<div class="po-m">${poSlot(a)}<div class="po-bye">First-round bye</div></div>`;
+          if (bT && !aT) return `<div class="po-m">${poSlot(b)}<div class="po-bye">First-round bye</div></div>`;
+          return `<div class="po-m">${poSlot(a)}${poSlot(b)}</div>`; }).join("")
+  }</div>`).join("");
+}
+const PO_TIER = {clinched:"Clinched", lock:"Lock", in:"Should be in", bubble:"Bubble", miracle:"Need a miracle", out:"Eliminated"};
+function poOdds(X){
+  return `<table class="po-odds"><thead><tr><th>#</th><th>Team</th><th>W-L</th><th>Odds</th><th>Likely</th><th>Status</th></tr></thead><tbody>${
+    X.table.map(t=>`<tr class="${t.seed===X.P && X.table.length > X.P ? "cut" : ""}"><td class="n">${t.seed}</td><td class="tm">${esc(t.team)}</td><td class="n">${esc(t.rec)}</td><td><div class="po-bar ${t.p>=0.55?"hi":""}"><i style="width:${Math.round(t.p*100)}%"></i><span>${pctS(t.p)}</span></div></td><td class="n">${t.likely && !t.elim ? ord(t.likely) : "–"}</td><td><span class="chip c-${t.tier}">${PO_TIER[t.tier]}</span></td></tr>`).join("")
+  }</tbody></table>`;
+}
+function poBubble(X){
+  const T = X.table, P = X.P;
+  const inn = T.slice(Math.max(0,P-3), P), out = T.slice(P, P+3);
+  return `<div class="po-list"><div class="lbl">Last ${numw(inn.length)} in</div>${inn.map(t=>`<div>${esc(t.team)} <b>${pctS(t.p)}</b></div>`).join("")}${out.length?`<div class="lbl">First ${numw(out.length)} out</div>${out.map(t=>`<div>${esc(t.team)} <b>${pctS(t.p)}</b></div>`).join("")}`:""}</div>`;
+}
+function poGotw(X){
+  const g = X.gotw; if (!g) return `<p class="po-note">No single game swings the race much this week.</p>`;
+  const nick = t => esc(t.team.split(" ").slice(-1)[0]);
+  return `<div class="po-gotw"><span class="chip c-bubble">Playoff implications</span><div class="v">${esc(g.a.team)} <em>vs.</em> ${esc(g.b.team)}</div>
+    <div class="po-sw"><b>${nick(g.a)}</b><span>Win: <b>${pctS(g.a.winP)}</b> to make it · Lose: <b>${pctS(g.a.loseP)}</b></span><b>${nick(g.b)}</b><span>Win: <b>${pctS(g.b.winP)}</b> to make it · Lose: <b>${pctS(g.b.loseP)}</b></span></div></div>`;
+}
+function poClinch(W){ return `<ul class="po-cl">${W.clinch.map(c=>`<li><b class="${c.k}">${esc(c.l)}</b>${esc(c.t)}</li>`).join("")}</ul>`; }
+function poSub(X){ return X.weeksLeft === 0 ? "REGULAR SEASON COMPLETE · BRACKET SET" : `${X.weeksLeft} WEEK${X.weeksLeft>1?"S":""} LEFT · TOP ${X.P} GET IN${X.byes?` · TOP ${X.byes} GET BYES`:""}`; }
 
 /* ---------------- Render ---------------- */
 function boxScore(S, win){
@@ -1369,7 +1675,7 @@ function render(){
   const M = state.model, E = state.edition, paper = $("#paper");
   const date = editionDate().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   const banner = state.sample
-    ? `<div class="banner"><b>SAMPLE EDITION.</b> A fictional league so you can see the paper. Enter a Sleeper username or league ID above to print yours.</div>`
+    ? `<div class="banner"><b>SAMPLE EDITION.</b> A fictional league so you can see the paper. Pick a later week to preview the playoff race, or enter a Sleeper username or league ID above to print yours.</div>`
     : (state.early ? `<div class="banner"><b>EARLY EDITION.</b> Some Week ${M.week} games may still be in progress. Scores can change.</div>` : "");
   const flag = `<div class="flag">
     <div class="flag-top"><span>Vol. ${esc(M.season)} · Week ${M.week}${M.playoffs?" · Playoffs":""}</span><span>${esc(date)}</span><span>Price: one waiver claim</span></div>
@@ -1444,13 +1750,22 @@ function render(){
   </div>`;
 
 
+
+  const PX = M.playoff, PW = E.po;
+  const poHtml = PX && PW ? `<section class="section po"><h2 class="sec-h">The Playoff Picture <small>${poSub(PX)}</small></h2>
+    <div class="po-hd"><div class="t">The Race</div><div class="by"><b>Analysis by Dr. Seedwell, Bracketologist</b>${PX.weeksLeft ? `If the season ended today, here's your bracket. It doesn't, so here are the odds: ${PX.sims.toLocaleString("en-US")} simulated finishes${PX.hasByes ? ", byes factored in" : ""}.` : "The regular season is over. Here's your bracket."}</div></div>
+    <div class="po-row1"><h3>${PX.weeksLeft ? "If the Season Ended Today" : "The Bracket"} <small>BY SEED</small></h3><div class="po-br" style="--rounds:${PX.rounds}">${poBracket(PX, PW.champ)}</div>
+      <p class="po-note">Seeds by record, then points scored.${PX.table[PX.P] && PX.weeksLeft ? ` ${esc(PX.table[PX.P].team)} is ${PX.cutGap === 0 ? "level on record, out on points" : `${PX.cutGap} game${PX.cutGap===1?"":"s"} out of the ${ord(PX.P)} seed`}.` : ""}</p></div>
+    <div class="po-row2"><div><h3>Playoff Odds <small>${PX.weeksLeft ? PX.sims.toLocaleString("en-US") + " SIMULATIONS" : "FINAL"}</small></h3><div class="po-scroll">${poOdds(PX)}</div></div><div><h3>Bubble Watch</h3>${poBubble(PX)}</div></div>
+    <div class="po-row3">${PX.weeksLeft ? `<div><h3>Game of the Week <small>BIGGEST SWING</small></h3>${poGotw(PX)}</div>` : ""}<div><h3>Clinch Watch</h3>${poClinch(PW)}</div>${PW.byeNote ? `<div><h3>Byes Factored In</h3><div class="po-byes">${esc(PW.byeNote)}</div></div>` : ""}</div>
+    <div class="po-take"><span class="kicker">Bracketology</span><h2>${esc(PW.headline)}</h2><div class="body">${PW.body.map(p=>`<p>${esc(p)}</p>`).join("")}</div></div></section>` : "";
   const H = E.horo;
   const hsItem = h => `<div class="hs" data-o="${h.real}"><div class="g" aria-hidden="true">${h.g}&#xFE0E;</div><div class="sg">${esc(h.sign)}<span>${esc(h.why)}</span></div><div class="tm">${esc(h.team)}</div><div class="tx">${esc(h.jab)}</div><div class="tx pr"><b>Prophecy</b>${esc(h.pro)}</div><div class="lk">${esc(h.luck)}</div></div>`;
   const horoHtml = H ? `<section class="section"><h2 class="sec-h">Horoscopes <small>FOR WEEK ${H.forWeek}</small></h2>
     <div class="horo-hd"><div class="t">The Stars</div><div class="by"><b>As read by Madame Waivera</b>Your sign is set by how you manage, not when you were born. The stars have been watching your roster moves.</div></div>
     <div class="horo">${H.items.map(hsItem).join("")}</div>
     <p class="horo-foot">Signs update weekly. If yours changed, the stars noticed something. Madame Waivera is not a licensed astrologer, fantasy analyst, or waiver priority. Start your players at your own risk.</p></section>` : "";
-  paper.innerHTML = banner + flag + ticker + `<div class="front">${leadHtml}${rail}</div>` + games + horoHtml +
+  paper.innerHTML = banner + flag + ticker + `<div class="front">${leadHtml}${rail}</div>` + games + poHtml + horoHtml +
     `<section class="section split">${wireHtml}${powerHtml}</section>` +
     `<footer class="foot"><span>The Waiver Wire Gazette · independent fan project using Sleeper's public data · not affiliated with Sleeper</span><span>Quotes are satire. Box scores are not.</span></footer>`;
 }
@@ -1489,8 +1804,9 @@ function npHTML(M, E){
   const lg = M.games.find(g=>g.id===E.leadId), ls = E.stories[E.leadId];
   const others = M.games.filter(g=>g.id!==E.leadId).sort((a,b)=>b.priority-a.priority);
   const chunks = []; for (let i=0;i<others.length;i+=4) chunks.push(others.slice(i,i+4));
-  const horoPage = E.horo ? 2 + chunks.length : null;
-  const lastPage = 2 + chunks.length + (E.horo ? 1 : 0);
+  const poPage = (M.playoff && E.po) ? 2 + chunks.length : null;
+  const horoPage = E.horo ? 2 + chunks.length + (poPage ? 1 : 0) : null;
+  const lastPage = 2 + chunks.length + (poPage ? 1 : 0) + (E.horo ? 1 : 0);
   const run = (pg, section) => `<div class="np-run"><span>${esc(name)}</span><span>${esc(section)}</span><span>Week ${M.week} · Page ${pg}</span></div>`;
   const A = M.awards, aw = [];
   const award = (lbl, who, why) => aw.push(`<div class="np-aw"><div class="np-lbl">${lbl}</div><div class="np-who">${esc(who)}</div><div class="np-why">${esc(why)}</div></div>`);
@@ -1531,7 +1847,7 @@ function npHTML(M, E){
         <div class="np-sec">Standings${M.medianOn?" <small>incl. median</small>":""}</div>${standings}
       </div>
     </div>
-    <div class="np-inside">Inside: ${chunks.length?`Around the League, p. 2${chunks.length>1?"–"+(1+chunks.length):""} · `:""}${horoPage?`Horoscopes, p. ${horoPage} · `:""}The Hot Take, Power Poll &amp; Transaction Wire, p. ${lastPage}</div>
+    <div class="np-inside">Inside: ${chunks.length?`Around the League, p. 2${chunks.length>1?"–"+(1+chunks.length):""} · `:""}${poPage?`The Playoff Picture, p. ${poPage} · `:""}${horoPage?`Horoscopes, p. ${horoPage} · `:""}The Hot Take, Power Poll &amp; Transaction Wire, p. ${lastPage}</div>
   </div></div>`;
 
   const gamePages = chunks.map((ch,i)=>`<div class="np-page"><div class="np-in">${run(i+2,"Around the League")}
@@ -1567,7 +1883,14 @@ function npHTML(M, E){
     <div class="np-horo">${E.horo.items.map(h=>`<div class="np-hs"><div class="g">${h.g}&#xFE0E;</div><div class="sg">${esc(h.sign)}<span>${esc(h.why)}</span></div><div class="tm">${esc(h.team)}</div><div class="tx">${esc(h.jab)}</div><div class="tx pr"><b>Prophecy</b>${esc(h.pro)}</div><div class="lk">${esc(h.luck)}</div></div>`).join("")}</div>
     <div class="np-foot">Madame Waivera is not a licensed astrologer, fantasy analyst, or waiver priority. Start your players at your own risk.</div>
   </div></div>` : "";
-  return [front, ...gamePages, ...(horoPg ? [horoPg] : []), back];
+  const PX = M.playoff, PW = E.po;
+  const poPg = poPage ? `<div class="np-page"><div class="np-in np-po po">${run(poPage,"The Playoff Picture")}
+    <div class="np-horo-hd"><div class="t">The Race</div><div class="by"><b>Analysis by Dr. Seedwell, Bracketologist</b>${esc(poSub(PX).toLowerCase().replace(/^./,c=>c.toUpperCase()))}</div></div>
+    <div class="np-po-br po-br" style="--rounds:${PX.rounds}">${poBracket(PX, PW.champ)}</div>
+    <div class="np-po-2"><div>${poOdds(PX)}</div><div><div class="np-sec">Bubble Watch</div>${poBubble(PX)}<div class="np-sec">Clinch Watch</div>${poClinch(PW)}</div></div>
+    <div class="po-take"><span class="np-kick">Bracketology</span><h2>${esc(PW.headline)}</h2><div class="body">${PW.body.map(p=>`<p>${esc(p)}</p>`).join("")}</div>${PW.byeNote?`<p class="po-note">${esc(PW.byeNote)}</p>`:""}</div>
+  </div></div>` : "";
+  return [front, ...gamePages, ...(poPg ? [poPg] : []), ...(horoPg ? [horoPg] : []), back];
 }
 
 function npFit(page){
@@ -1672,7 +1995,9 @@ function sampleRaw(){
     3: [{status:"complete", type:"free_agent", adds:{[mk("K")]:2}, drops:{}, settings:{}}]
   };
   const n = 10, ids = [...Array(n)].map((_,i)=>i+1), weeks = {}, proj = {};
-  for (let w=1; w<=4; w++) {
+  const BYE_OF = Object.fromEntries(NFL.map((t,i)=>[t, 5 + (i % 10)]));   // a full season of NFL bye weeks (Weeks 5-14)
+  const onBye = (id, w) => BYE_OF[players[id][2]] === w;
+  for (let w=1; w<=14; w++) {
     if (w===2) { L[3].WR[0] = tradeB; L[7].RB[0] = tradeA; L[5].RB[3] = pickupRB; L[9].WR[3] = pickupWR; }
     if (w===3) { L[9].WR[3] = pickupWR; }
     proj[w] = {};
@@ -1684,13 +2009,16 @@ function sampleRaw(){
         const pp = {};
         for (const id of all) {
           const pj = Math.round(base[id]*(0.85+0.3*r())*100)/100;
-          proj[w][id] = pj;
+          if (!onBye(id, w)) proj[w][id] = pj;
           let v = pj * (0.1 + 1.9*Math.pow(r(), 1.1)) + (players[id][1]==="DEF" ? -3 + 4*r() : 0);
           if (id === hurt && w === 3) v = 1.4;
-          pp[id] = w <= 3 ? Math.round(v*100)/100 : 0;
+          pp[id] = onBye(id, w) ? 0 : Math.round(v*100)/100;
         }
         const flexPick = r()<.5 ? R.RB[2] : R.WR[2];
         let starters = [R.QB[0],R.RB[0],R.RB[1],R.WR[0],R.WR[1],R.TE[0],flexPick,R.K[0],R.DEF[0]];
+        // sample managers swap out players on bye when they have a backup at the position
+        const backups = {QB:[...R.QB], RB:[...R.RB], WR:[...R.WR], TE:[...R.TE]};
+        starters = starters.map(id => { if (!onBye(id, w)) return id; const pos = players[id][1]; const alt = (backups[pos]||[]).find(b=>b!==id && !starters.includes(b) && !onBye(b, w)); return alt || id; });
         if (w===2 && rid===8) starters[5] = "0";
         const sp = starters.map(id=>id==="0"?0:pp[id]);
         list.push({roster_id:rid, matchup_id:k+1, starters, starters_points:sp, players:all, players_points:pp, points:Math.round(sp.reduce((a,b)=>a+b,0)*100)/100});
@@ -1698,7 +2026,9 @@ function sampleRaw(){
     }
     weeks[w] = list;
   }
-  return {league:{league_id:"sample", name:"The Sample League", season:"2026", roster_positions:rosterPositions, scoring_settings:{rec:1}, settings:{playoff_week_start:15, playoff_teams:6, league_average_match:1}}, users, rosters, weeks, txnsByWeek, proj, players};
+  for (const ro of rosters) { const R = L[ro.roster_id]; ro.players = [...R.QB,...R.RB,...R.WR,...R.TE,...R.K,...R.DEF]; ro.starters = [R.QB[0],R.RB[0],R.RB[1],R.WR[0],R.WR[1],R.TE[0],R.RB[2],R.K[0],R.DEF[0]]; }
+  const byeWeeks = {}; for (let w=1; w<=14; w++) { const b = NFL.filter(t=>BYE_OF[t]===w); if (b.length) byeWeeks[w] = b; }
+  return {league:{league_id:"sample", name:"The Sample League", season:"2026", roster_positions:rosterPositions, scoring_settings:{rec:1}, settings:{playoff_week_start:15, playoff_teams:6, league_average_match:1}}, users, rosters, weeks, txnsByWeek, proj, players, byeWeeks};
 }
 
 /* ---------------- App state + wiring ---------------- */
@@ -1777,7 +2107,7 @@ async function resolveInput(){
 $("#f").addEventListener("submit", e => {
   e.preventDefault();
   clearShared();
-  if (state.sample && !$("#q").value.trim()) { show(state.raw, +wkSel.value > 3 ? 3 : +wkSel.value, true); setStatus("Showing the sample league. Enter your username or league ID to print yours."); return; }
+  if (state.sample && !$("#q").value.trim()) { show(state.raw, Math.min(14, +wkSel.value), true); setStatus(+wkSel.value > 14 ? "The sample league's regular season ends in Week 14. Showing Week 14." : `Showing the sample league, Week ${Math.min(14, +wkSel.value)}. Enter your username or league ID to print yours.`); return; }
   if (!$("#lgWrap").hidden && state.pickerFor && $("#q").value.trim().toLowerCase() === state.pickerFor && $("#lg").value) return loadLeague($("#lg").value, +wkSel.value);
   resolveInput();
 });

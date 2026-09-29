@@ -229,18 +229,19 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
   <div class="press-in">
     <div class="brand">Waiver Wire Gazette <small>THE PRESS ROOM · FOR SLEEPER LEAGUES</small></div>
     <form id="f" class="row" autocomplete="off">
-      <div class="fld"><label for="q">Sleeper username or league ID</label><input id="q" placeholder="e.g. gmorgan250 or 1180…" spellcheck="false"></div>
+      <div class="fld"><label for="q">Sleeper username or league ID</label><input id="q" placeholder="Your Sleeper username or league ID" spellcheck="false"></div>
       <div class="fld" id="lgWrap" hidden><label for="lg">League</label><select id="lg"></select></div>
       <div class="fld"><label for="wk">Week</label><select id="wk"></select></div>
       <button class="btn primary" type="submit" id="go">Print edition</button>
+      <button class="btn" type="button" id="regen" title="Pull the latest scores and rewrite the stories">Refresh &amp; rewrite</button>
       <button class="btn" type="button" id="ai" hidden>Punch it up with Claude</button>
       <button class="btn" type="button" id="dl" aria-expanded="false" aria-controls="dlMenu">Download newspaper</button>
       <button class="btn" type="button" id="more" aria-expanded="false" aria-controls="settings">Newsroom settings</button>
     </form>
-    <div id="dlMenu" class="dl-menu" hidden><button class="btn primary" type="button" id="dlPdf">Full paper (PDF)</button><button class="btn" type="button" id="dlImg">Front page (image)</button></div>
+    <div id="dlMenu" class="dl-menu" hidden><button class="btn primary" type="button" id="dlPdf">Full paper (PDF)</button><button class="btn" type="button" id="dlImg">Front page (image)</button><button class="btn" type="button" id="shareLink" hidden>Copy link to this edition</button></div>
     <div id="status" role="status"></div>
     <div id="settings" class="settings" hidden>
-      <div class="fld"><label for="lore">League lore for the writers</label><textarea id="lore" placeholder="Rivalries, nicknames, running jokes. e.g. 'Balsamic Vinegar has a massive fan base in Italy.' Used when Claude writes the edition. Saved in this browser for this league."></textarea></div>
+      <div class="fld"><label for="lore">League lore for the writers</label><textarea id="lore" placeholder="Rivalries, nicknames, running jokes. e.g. 'Nobody has beaten the commissioner since 2021' or 'Last place gets a haircut chosen by the league.' Used when Claude writes the edition. Saved in this browser for this league."></textarea></div>
       <div class="fld" id="keyWrap"><label for="key">Anthropic API key (hosted version only)</label><input id="key" type="password" placeholder="sk-ant-…"><label for="model" style="margin-top:6px">Model</label><input id="model" value="claude-sonnet-5-5"><p>Optional. Lets the hosted app write stories with Claude. The key stays in this browser and is sent only to Anthropic's API.</p></div>
     </div>
   </div>
@@ -1002,13 +1003,14 @@ function writeColumn(M, r){
   return {headline, body, pundit: PUNDIT};
 }
 
-function writeEdition(M){
-  const r = rng(hash(M.leagueId + ":" + M.week));
+function writeEdition(M, variant = 0){
+  const V = variant ? ":v" + variant : "";
+  const r = rng(hash(M.leagueId + ":" + M.week + V));
   const lead = [...M.games].sort((a,b)=>b.priority-a.priority)[0];
   const stories = {};
-  const ed = {used:new Set(), slot:0, base:hash(M.leagueId), step:Math.max(7, M.games.length*2+1)};
+  const ed = {used:new Set(), slot:0, base:hash(M.leagueId + V), step:Math.max(7, M.games.length*2+1)};
   const order = [lead, ...M.games.filter(g=>g!==lead)].filter(Boolean);
-  for (const g of order) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id)), g===lead, ed);
+  for (const g of order) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id+V)), g===lead, ed);
   return {leadId: lead ? lead.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), ai:false};
 }
 
@@ -1368,7 +1370,7 @@ function applyAI(out){
 /* ---------------- Sample league ---------------- */
 function sampleRaw(){
   const r = rng(20260928);
-  const T = [["Casco Bay Crushers","harborhawk"],["Lobster Roll Dynasty","buoybrain"],["Fog City Fumbles","mistymike"],["Head Light Heroes","lighthousejen"],["Moose Crossing","bigmoose22"],["Whoopie Pie Warriors","sugarrush"],["Allagash Attack","hopsandpops"],["Nor'easter Nation","stormchaser"],["Bangor Bruisers","bangorbill"],["Acadia All-Stars","summitsue"]];
+  const T = [["Touchdown Tacos","tacotuesday"],["Fumble Factory","butterfingers"],["Waiver Wire Wizards","wirewizard"],["The Bye Week Blues","byeweekbob"],["Kicker Kingdom","footonly"],["Red Zone Rascals","redzoneron"],["Hail Mary Hooligans","hailmaryhank"],["Garbage Time Legends","garbagetime"],["Sunday Scaries","scaredysam"],["Pick Six Posse","picksixpat"]];
   const FIRST = ["Jalen","Marcus","Tre","Darius","Cole","Bryce","Malik","Devon","Isaiah","Caleb","Nico","Jaylen","Rashad","Tyler","Brock","Keenan","Amari","Drake","Quincy","Zay","Terrell","Omar","Luke","Dante","Kyler","Evan","Josh","Rico","Bo","Xavier"];
   const LAST = ["Holloway","Brightwater","Kingsley","Okafor","Maddox","Pruitt","Whitlock","Sandoval","Achebe","Lindqvist","Fairbanks","Culpepper","Dunmore","Ravenel","Tolliver","Mercer","Beaumont","Quarles","Stroud-Ellis","Vance","Hargrove","Oduya","Pembroke","Castellanos","Winslow","Ashby","Delacroix","Farrow","Gentry","Ibarra","Kessler","Montague","Northcutt","Pasternak","Redwine","Salcedo","Thornbury","Underwood","Valdez","Yardley"];
   const NFL = ["BUF","MIA","NYJ","NE","BAL","CIN","CLE","PIT","HOU","IND","JAX","TEN","DEN","KC","LV","LAC","DAL","NYG","PHI","WAS","CHI","DET","GB","MIN","ATL","CAR","NO","TB","ARI","LAR","SF","SEA"];
@@ -1441,11 +1443,13 @@ function defaultWeek(ns){
   return Math.max(1, Math.min(18, (day===1||day===2) ? cur : cur-1));
 }
 
-function show(raw, week, isSample){
+function show(raw, week, isSample, variant = 0){
   state.raw = raw; state.sample = isSample;
   const ns0 = state.nflState;
   state.model = buildModel(raw, week, {injFresh: isSample || !ns0 || week >= +ns0.week - 1});
-  state.edition = writeEdition(state.model);
+  state.edition = writeEdition(state.model, variant);
+  state.variant = variant; state.week = week;
+  $("#shareLink").hidden = isSample;
   const ns = state.nflState, day = new Date().getDay();
   state.early = !isSample && ns && +ns.week === week && (day===0 || day===1);
   const loreKey = "wwg_lore_" + state.model.leagueId;
@@ -1454,14 +1458,13 @@ function show(raw, week, isSample){
   render();
 }
 
-async function loadLeague(id, week){
+async function loadLeague(id, week, variant = 0){
   $("#go").disabled = true;
   try {
     const raw = await fetchLeagueRaw(id, week, m=>setStatus(m));
     state.leagueId = id;
-    show(raw, week, false);
+    show(raw, week, false, variant);
     setStatus(`Week ${week} edition of ${raw.league.name} is on the stands.`);
-    try { const u = new URL(location.href); u.searchParams.set("league", id); u.searchParams.set("week", week); history.replaceState(null,"",u); } catch(e){}
   } catch(e) {
     setStatus(e.network ? "Couldn't reach Sleeper from this page. Inside Claude, pages can't call outside sites; open the hosted version of the app to load a live league." : e.message, true);
   } finally { $("#go").disabled = false; }
@@ -1504,6 +1507,18 @@ $("#key").addEventListener("input", e => { store.set("wwg_key", e.target.value.t
 $("#model").value = store.get("wwg_model") || "claude-sonnet-5-5";
 $("#model").addEventListener("input", e => store.set("wwg_model", e.target.value.trim()));
 $("#ai").addEventListener("click", aiWrite);
+$("#regen").addEventListener("click", () => {
+  const v = (state.variant || 0) + 1;
+  if (state.sample || !state.leagueId) { show(state.raw, state.week || 3, true, v); setStatus("Rewritten. Same scores, fresh copy."); return; }
+  try { localStorage.removeItem("wwg_players_v2"); } catch(e){}
+  loadLeague(state.leagueId, +wkSel.value, v).then(()=>{ if (!$("#status").classList.contains("err")) setStatus(`Refreshed with the latest scores and rewritten. Week ${wkSel.value}.`); });
+});
+$("#shareLink").addEventListener("click", async () => {
+  let link = location.href;
+  try { const u = new URL(location.href); u.search = ""; u.hash = ""; u.searchParams.set("league", state.leagueId); u.searchParams.set("week", state.week); link = u.toString(); } catch(e){}
+  try { await navigator.clipboard.writeText(link); setStatus("Link copied. Anyone who opens it lands on this league and week."); }
+  catch(e) { setStatus("Copy blocked by your browser. Here's the link: " + link); }
+});
 $("#dl").addEventListener("click", () => { const m=$("#dlMenu"); m.hidden=!m.hidden; $("#dl").setAttribute("aria-expanded", String(!m.hidden)); });
 $("#dlPdf").addEventListener("click", () => downloadPaper("pdf"));
 $("#dlImg").addEventListener("click", () => downloadPaper("img"));

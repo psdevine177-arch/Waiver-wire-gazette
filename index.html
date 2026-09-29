@@ -237,9 +237,23 @@ function buildModel(raw, week){
   };
   const rec = {};
   for (const rid in teams) rec[rid] = {w:0,l:0,t:0,pf:0,pa:0,res:[]};
+  const po = league.settings && league.settings.playoff_week_start;
+  const medianOn = !!(league.settings && +league.settings.league_average_match === 1);
+  const medianFor = w => {
+    if (!medianOn || (po && w >= po)) return null;
+    const scores = pairs(w).flatMap(g=>[[g.a.roster_id,+g.a.points||0],[g.b.roster_id,+g.b.points||0]]);
+    if (!scores.length || scores.every(([,p])=>p===0)) return null;
+    const s = scores.map(x=>x[1]).sort((a,b)=>a-b), k = s.length;
+    const med = k%2 ? s[(k-1)/2] : (s[k/2-1]+s[k/2])/2;
+    const res = {};
+    for (const [rid,p] of scores) res[rid] = p>med ? "W" : p<med ? "L" : "T";
+    return {med, res};
+  };
   let before = null, seasonHigh = null;
   for (let w=1; w<=week; w++) {
     if (w === week) before = JSON.parse(JSON.stringify(rec));
+    const md = medianFor(w);
+    if (md) for (const [rid,x] of Object.entries(md.res)) { const T = rec[rid]; if (!T) continue; if (x==="W") T.w++; else if (x==="L") T.l++; else T.t++; }
     for (const g of pairs(w)) {
       const pa = +g.a.points||0, pb = +g.b.points||0;
       if (pa===0 && pb===0) continue;
@@ -254,6 +268,7 @@ function buildModel(raw, week){
       }
     }
   }
+  const weekMedian = medianFor(week);
   const streak = r => { const a=r.res; if(!a.length) return {k:"",n:0}; const k=a[a.length-1]; let n=0; for (let i=a.length-1;i>=0&&a[i]===k;i--) n++; return {k,n}; };
 
   const detail = m => {
@@ -277,7 +292,7 @@ function buildModel(raw, week){
   const games = raws.map(g => {
     let A = {...teams[g.a.roster_id], ...detail(g.a)}, B = {...teams[g.b.roster_id], ...detail(g.b)};
     if (B.pts > A.pts) [A,B] = [B,A];
-    for (const S of [A,B]) { S.before = before ? before[S.rid] : null; S.after = rec[S.rid]; S.streak = streak(rec[S.rid]); allPts.push(S.pts); }
+    for (const S of [A,B]) { S.med = weekMedian ? weekMedian.res[S.rid] : null; S.before = before ? before[S.rid] : null; S.after = rec[S.rid]; S.streak = streak(rec[S.rid]); allPts.push(S.pts); }
     return {id:g.id, W:A, L:B, tie:A.pts===B.pts, margin:A.pts-B.pts};
   });
   const played = allPts.some(p=>p>0);
@@ -297,7 +312,7 @@ function buildModel(raw, week){
       if (L.blunder && L.blunder.gain > margin) add("bench_loss", 90);
       if (margin < 2) add("nailbiter", 88);
       if (L.before && L.before.l===0 && L.before.t===0 && L.before.w>=2) add("unbeaten_falls", 86);
-      if (W.before && L.before && week>1 && L.before.w - W.before.w >= 2) add("upset", 80);
+      if (W.before && L.before && week>1 && L.before.w - W.before.w >= (medianOn ? 3 : 2)) add("upset", 80);
       if (seasonHigh && W.pts === seasonHigh.pts && seasonHigh.week === week && week>1) add("season_high", 76);
       if (margin >= 40) add("blowout", 72);
       if (W.before && W.before.w===0 && week>=3) add("first_win", 66);
@@ -343,7 +358,7 @@ function buildModel(raw, week){
   return {
     leagueId: league.league_id, leagueName: league.name || "Fantasy League", season: league.season, week,
     playoffs: !!(league.settings && league.settings.playoff_week_start && week >= league.settings.playoff_week_start),
-    games, played, n, awards:{pow, dud, blund, unlucky, lucky, top}, standings, power, playoffLine, wire, nextOpp, seasonHigh
+    medianOn, median: weekMedian ? weekMedian.med : null, games, played, n, awards:{pow, dud, blund, unlucky, lucky, top}, standings, power, playoffLine, wire, nextOpp, seasonHigh
   };
 }
 
@@ -404,7 +419,13 @@ function writeGame(g, M, r, isLead){
   const extra = [];
   if (L.worst && L.worst.pts < 4 && !g.tie) extra.push(`${L.worst.name} contributed ${f2(L.worst.pts)} from the ${L.worst.slot || L.worst.pos} spot, ${pick(r,["which is being treated as a personnel matter","a performance the team has asked us not to print","and has reportedly been moved to a smaller locker"])}.`);
   if (bl && tag !== "bench_loss" && bl.gain >= 8) extra.push(`The ${L.team} bench also housed ${bl.b.name} (${f2(bl.b.pts)}), who outscored starter ${bl.s.name} by ${f2(bl.gain)}.`);
-  if (!g.tie) extra.push(`${W.team} moves to ${recStr(W.after)}; ${L.team} drops to ${recStr(L.after)}.`);
+  if (M.median != null && !g.tie) {
+    const wm = W.med, lm = L.med, md = f2(M.median);
+    if (wm==="W" && lm==="W") extra.push(`Both teams cleared the league median of ${md}, so ${W.team} banks a 2-0 week and ${L.team} salvages a 1-1 split.`);
+    else if (wm==="W" && lm!=="W") extra.push(`${W.team} also cleared the league median of ${md} for a clean 2-0 week. ${L.team} missed it too and goes 0-2.`);
+    else if (wm!=="W" && lm!=="W") extra.push(`Neither team reached the league median of ${md}, so ${W.team} settles for a 1-1 week and ${L.team} goes 0-2.`);
+  }
+  if (!g.tie) extra.push(`${W.team} ${M.median!=null?"is now":"moves to"} ${recStr(W.after)}; ${L.team} ${M.median!=null?"sits at":"drops to"} ${recStr(L.after)}.`);
   if (extra.length) body.push(extra.join(" "));
   const qL = [
     `“We'll look at the tape,” said a visibly shaken member of the ${L.team} front office, before declining to look at the tape.`,
@@ -491,11 +512,12 @@ function render(){
       ${A.pow?award("Player of the week", A.pow.name, `${f2(A.pow.pts)} pts for ${A.pow.team}`):""}
       ${A.top?award("Top score", A.top.team, `${f2(A.top.pts)} points, best in the league`):""}
       ${A.blund?award("Bench blunder", A.blund.team, `Started ${A.blund.s.name} (${f2(A.blund.s.pts)}) over ${A.blund.b.name} (${f2(A.blund.b.pts)}). Cost: ${f2(A.blund.gain)} pts${A.blund.lost?", and possibly the game":""}.`):""}
+      ${M.median!=null?award("The median line", f2(M.median)+" pts", (()=>{const all=M.games.flatMap(g=>[g.W,g.L]); const up=all.filter(s=>s.med==="W").length; return `${up} of ${all.length} teams cleared it for the bonus win`;})()):""}
       ${A.unlucky?award("Unluckiest loser", A.unlucky.team, `Scored ${f2(A.unlucky.pts)} and still lost`):""}
       ${A.lucky?award("Luckiest winner", A.lucky.team, `Won with just ${f2(A.lucky.pts)}`):""}
       ${A.dud?award("Dud of the week", A.dud.name, `${f2(A.dud.pts)} pts as a starter for ${A.dud.team}`):""}
     </div>
-    <div class="box"><h3>Standings <small>THRU WK ${M.week}</small></h3>
+    <div class="box"><h3>Standings <small>THRU WK ${M.week}${M.medianOn?" · INCL. MEDIAN":""}</small></h3>
       <div style="overflow-x:auto"><table class="stand"><thead><tr><th>#</th><th>Team</th><th>W-L</th><th>PF</th><th>Strk</th></tr></thead><tbody>
       ${M.standings.map((s,i)=>`<tr class="${i+1===M.playoffLine && i<M.standings.length-1?"cut":""}"><td>${i+1}</td><td title="${esc(s.team)}">${esc(s.team)}</td><td>${recStr(s)}</td><td>${f2(s.pf)}</td><td>${s.streak.n?s.streak.k+s.streak.n:"–"}</td></tr>`).join("")}
       </tbody></table></div>
@@ -551,10 +573,11 @@ function factsFor(M){
   const side = S => ({team:S.team, manager:"@"+S.mgr, points:+f2(S.pts), record_after:recStr(S.after), week_rank:`${S.rank} of ${M.n}`, streak:S.streak.n?S.streak.k+S.streak.n:"",
     top_starters:S.top.map(p=>`${p.name} (${p.pos}${p.nfl?", "+p.nfl:""}) ${f2(p.pts)}`), worst_starter:S.worst?`${S.worst.name} (${S.worst.pos}) ${f2(S.worst.pts)}`:null,
     biggest_bench_mistake:S.blunder?`benched ${S.blunder.b.name} (${f2(S.blunder.b.pts)}) while starting ${S.blunder.s.name} (${f2(S.blunder.s.pts)})`:null,
-    next_opponent:(M.nextOpp[S.rid]||{}).team||null});
+    next_opponent:(M.nextOpp[S.rid]||{}).team||null, vs_league_median:S.med||undefined});
   const A = M.awards;
   return {
     league:M.leagueName, season:M.season, week:M.week, playoffs:M.playoffs,
+    median_scoring: M.median!=null ? `ON: each week every team also plays the league median (${f2(M.median)} this week). Beat it = extra win, so a team can go 2-0, 1-1 or 0-2 in a week. Records below already include median games.` : "off",
     games:M.games.map(g=>({id:g.id, tie:g.tie, winner:side(g.W), loser:side(g.L), margin:+f2(g.margin), storylines:g.tags.map(t=>t.k)})),
     awards:{player_of_week:A.pow&&`${A.pow.name} ${f2(A.pow.pts)} for ${A.pow.team}`, dud:A.dud&&`${A.dud.name} ${f2(A.dud.pts)} for ${A.dud.team}`, unluckiest_loser:A.unlucky&&`${A.unlucky.team} ${f2(A.unlucky.pts)}`, luckiest_winner:A.lucky&&`${A.lucky.team} ${f2(A.lucky.pts)}`},
     standings:M.standings.map(s=>`${s.team} ${recStr(s)} PF ${f2(s.pf)}`),
@@ -663,7 +686,7 @@ function sampleRaw(){
     {status:"complete", type:"waiver", roster_ids:[9], adds:{[mk("WR")]:9}, drops:{[lineups[9].WR[3]]:9}, settings:{waiver_bid:12}},
     {status:"complete", type:"free_agent", roster_ids:[2], adds:{[mk("K")]:2}, drops:{}, settings:{}}
   ];
-  return {league:{league_id:"sample", name:"The Sample League", season:"2026", roster_positions:rosterPositions, settings:{playoff_week_start:15, playoff_teams:6}}, users, rosters, weeks, txns, players};
+  return {league:{league_id:"sample", name:"The Sample League", season:"2026", roster_positions:rosterPositions, settings:{playoff_week_start:15, playoff_teams:6, league_average_match:1}}, users, rosters, weeks, txns, players};
 }
 
 /* ---------------- App state + wiring ---------------- */

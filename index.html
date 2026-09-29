@@ -345,6 +345,8 @@ function buildModel(raw, week, opts = {}){
   }
   const tname = rid => (teams[rid] || {}).team || "?";
   const slots = (league.roster_positions||[]).filter(s=>!["BN","IR","TAXI"].includes(s));
+  const bestBall = !!(league.settings && +league.settings.best_ball === 1);   // lineups are auto-set, so no lineup-decision stories
+  const notBench = Object.fromEntries(rosters.map(r=>[r.roster_id, new Set([...(r.taxi||[]), ...(r.reserve||[])])]));
   const P = id => {
     const p = players[id];
     if (p) return {name:p[0], pos:p[1], nfl:p[2], inj:p[3] || ""};
@@ -385,16 +387,17 @@ function buildModel(raw, week, opts = {}){
       if (pa===0 && pb===0) continue;
       const A = rec[g.a.roster_id], B = rec[g.b.roster_id];
       if (!A || !B) continue;
-      A.pf+=pa; A.pa+=pb; B.pf+=pb; B.pa+=pa;
       scores[g.a.roster_id][w] = pa; scores[g.b.roster_id][w] = pb;
       margins.push(Math.abs(pa-pb));
-      if (pa>pb){A.w++;B.l++;A.res.push("W");B.res.push("L");}
-      else if (pb>pa){B.w++;A.l++;B.res.push("W");A.res.push("L");}
-      else {A.t++;B.t++;A.res.push("T");B.res.push("T");}
       for (const [m,rid] of [[pa,g.a.roster_id],[pb,g.b.roster_id]]) {
         if (!seasonHigh || m > seasonHigh.pts) seasonHigh = {pts:m, rid, week:w};
         if (m > 0 && (!seasonLow || m < seasonLow.pts)) seasonLow = {pts:m, rid, week:w};
       }
+      if (po && w >= po) continue;   // playoff games don't change regular-season records
+      A.pf+=pa; A.pa+=pb; B.pf+=pb; B.pa+=pa;
+      if (pa>pb){A.w++;B.l++;A.res.push("W");B.res.push("L");}
+      else if (pb>pa){B.w++;A.l++;B.res.push("W");A.res.push("L");}
+      else {A.t++;B.t++;A.res.push("T");B.res.push("T");}
     }
   }
   const rankAfter = rankOf(rec);
@@ -415,7 +418,8 @@ function buildModel(raw, week, opts = {}){
     const emptySlots = raw.filter(id=>!id || id==="0").length;
     const starters = raw.map((id,i)=>({id, slot:slots[i]||"", pts:+((m.starters_points && m.starters_points[i]) ?? pp[id] ?? 0), proj: proj ? (proj[id] ?? null) : null, ...P(id)})).filter(s=>s.id && s.id!=="0");
     const sset = new Set(raw);
-    const bench = (m.players||[]).filter(id=>!sset.has(id)).map(id=>({id, pts:+(pp[id]||0), proj: proj ? (proj[id] ?? null) : null, ...P(id)}));
+    const nb = notBench[m.roster_id] || new Set();
+    const bench = (m.players||[]).filter(id=>!sset.has(id) && !nb.has(id)).map(id=>({id, pts:+(pp[id]||0), proj: proj ? (proj[id] ?? null) : null, ...P(id)}));
     let tb = null, hb = null; // true blunder (projections favored the bench guy) / hindsight
     for (const b of bench) for (const s of starters) {
       const el = ELIG[s.slot];
@@ -426,6 +430,7 @@ function buildModel(raw, week, opts = {}){
       if (edge != null && edge >= 3 && (!tb || gain > tb.gain)) tb = {b, s, gain, edge};
       if (!hb || gain > hb.gain) hb = {b, s, gain, edge};
     }
+    if (bestBall) { tb = null; hb = null; }
     const sorted = [...starters].sort((x,y)=>y.pts-x.pts);
     const tp = proj ? starters.reduce((a,s)=>a+(s.proj||0),0) : null;
     return {pts:+m.points||0, starters, bench, emptySlots, top:sorted.slice(0,3), best:sorted[0], worst:sorted[sorted.length-1], tb, hb, blunder: tb || hb, proj: tp};
@@ -493,6 +498,7 @@ function buildModel(raw, week, opts = {}){
         }
       }
       for (const [S,side] of [[L,"L"],[W,"W"]]) {
+        if (bestBall) continue;
         if (S.emptySlots) add("empty_slot", side==="L" ? 48 : 30, side, {k:S.emptySlots});
         else {
           const zero = S.starters.find(p=>p.pts===0 && !["K","DEF"].includes(p.pos) && (p.proj==null || p.proj < 1));
@@ -1071,7 +1077,7 @@ function render(){
       ${A.lucky?award("Luckiest winner", A.lucky.team, `Won with ${f2(A.lucky.pts)}, which beats only ${A.lucky.allPlay} of ${M.n-1} teams`):""}
       ${A.bust && A.bust.proj - A.bust.pts >= 8 ? award("Bust of the week", A.bust.name, `${f2(A.bust.pts)} on a projection of ${f2(A.bust.proj)}, for ${A.bust.team}`) : (A.dud?award("Dud of the week", A.dud.name, `${f2(A.dud.pts)} pts as a starter for ${A.dud.team}`):"")}
     </div>
-    <div class="box"><h3>Standings <small>THRU WK ${M.week}${M.medianOn?" · INCL. MEDIAN":""}</small></h3>
+    <div class="box"><h3>Standings <small>${M.playoffs ? "FINAL REGULAR SEASON" : `THRU WK ${M.week}`}${M.medianOn?" · INCL. MEDIAN":""}</small></h3>
       <div style="overflow-x:auto"><table class="stand"><thead><tr><th>#</th><th>Team</th><th>W-L</th><th>PF</th><th>Strk</th></tr></thead><tbody>
       ${M.standings.map((s,i)=>`<tr class="${i+1===M.playoffLine && i<M.standings.length-1?"cut":""}"><td>${i+1}</td><td title="${esc(s.team)}">${esc(s.team)}</td><td>${recStr(s)}</td><td>${f2(s.pf)}</td><td>${s.streak.n?s.streak.k+s.streak.n:"–"}</td></tr>`).join("")}
       </tbody></table></div>
@@ -1399,7 +1405,8 @@ async function resolveInput(){
   const q = $("#q").value.trim();
   const week = +wkSel.value;
   if (!q) { setStatus("Enter a Sleeper username or league ID.", true); return; }
-  if (/^\d{9,}$/.test(q)) { $("#lgWrap").hidden = true; return loadLeague(q, week); }
+  if (/^\d{9,}$/.test(q)) { $("#lgWrap").hidden = true; state.pickerFor = null; return loadLeague(q, week); }
+  $("#lgWrap").hidden = true; state.pickerFor = null;
   $("#go").disabled = true;
   try {
     setStatus(`Looking up @${q}…`);
@@ -1411,6 +1418,7 @@ async function resolveInput(){
     const sel = $("#lg"); sel.innerHTML = "";
     leagues.forEach(l=>sel.add(new Option(l.name, l.league_id)));
     $("#lgWrap").hidden = leagues.length < 2;
+    state.pickerFor = q.toLowerCase();
     $("#go").disabled = false;
     return loadLeague(leagues[0].league_id, week);
   } catch(e) {
@@ -1422,7 +1430,7 @@ $("#f").addEventListener("submit", e => {
   e.preventDefault();
   clearShared();
   if (state.sample && !$("#q").value.trim()) { show(state.raw, +wkSel.value > 3 ? 3 : +wkSel.value, true); setStatus("Showing the sample league. Enter your username or league ID to print yours."); return; }
-  if (!$("#lgWrap").hidden && state.leagueId && $("#q").value.trim() && !/^\d{9,}$/.test($("#q").value.trim()) && $("#lg").value) return loadLeague($("#lg").value, +wkSel.value);
+  if (!$("#lgWrap").hidden && state.pickerFor && $("#q").value.trim().toLowerCase() === state.pickerFor && $("#lg").value) return loadLeague($("#lg").value, +wkSel.value);
   resolveInput();
 });
 $("#lg").addEventListener("change", () => { clearShared(); loadLeague($("#lg").value, +wkSel.value); });

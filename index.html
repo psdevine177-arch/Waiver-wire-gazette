@@ -1,0 +1,780 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>Waiver Wire Gazette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a dark "press room" control strip over a single tabloid front page — lead story + right rail, then game summaries, wire, power poll. Single deliberate newsprint look. */
+:root{
+  --desk:#2a2a2c; --press:#161617; --press-fg:#e9e7df; --press-muted:#9c9a92;
+  --paper:#efeee8; --ink:#141414; --muted:#56544e; --tint:#e1dfd6; --red:#c3161c; --red-ink:#fff;
+  --display:"Big Shoulders Display","Arial Narrow","Helvetica Neue Condensed",Impact,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--desk);color:var(--ink);font-family:var(--body);margin:0}
+button,input,select,textarea{font:inherit}
+:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Press room */
+.press{background:var(--press);color:var(--press-fg);padding-inline:16px;padding-block:14px;border-bottom:4px solid var(--red)}
+.press-in{max-width:1180px;margin:0 auto;display:grid;gap:10px}
+.brand{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand small{font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.12em;color:var(--press-muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.fld{display:grid;gap:4px;min-width:0}
+.fld label{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--press-muted)}
+.fld input,.fld select,.fld textarea{background:#232325;color:var(--press-fg);border:1px solid #3c3c3f;border-radius:3px;padding:9px 10px;min-width:0}
+.fld textarea{min-height:84px;resize:vertical;width:100%}
+#q{width:min(320px,80vw)}
+#lg{max-width:min(320px,80vw)}
+.btn{background:#2d2d30;color:var(--press-fg);border:1px solid #47474b;border-radius:3px;padding:9px 13px;cursor:pointer;font-family:var(--mono);font-size:12.5px;letter-spacing:.04em}
+.btn:hover{background:#38383c}
+.btn.primary{background:var(--red);border-color:var(--red);color:var(--red-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.55;cursor:wait}
+#status{font-family:var(--mono);font-size:12px;color:var(--press-muted);min-height:1.2em}
+#status.err{color:#ff8a80}
+.settings{border-top:1px solid #333;padding-top:10px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+.settings p{margin:0;font-size:12.5px;color:var(--press-muted);font-family:var(--mono);line-height:1.5}
+
+/* Paper */
+.desk{padding-inline:16px;padding-block:22px 48px}
+.paper{max-width:1180px;margin:0 auto;background:var(--paper);box-shadow:0 18px 50px rgba(0,0,0,.45);padding:clamp(14px,3vw,34px)}
+.banner{background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:12px;letter-spacing:.06em;padding:8px 12px;margin-bottom:14px}
+.banner b{color:#ff6b62}
+
+.flag{border-bottom:6px double var(--ink);padding-bottom:10px;display:grid;gap:6px}
+.flag-top{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 18px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid var(--ink);padding-bottom:6px}
+.masthead{font-family:var(--display);font-weight:900;text-transform:uppercase;line-height:.84;letter-spacing:-.005em;font-size:clamp(46px,9.5vw,128px);text-wrap:balance;margin:6px 0 2px}
+.flag-sub{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;align-items:center}
+.flag-sub .ed{background:var(--red);color:var(--red-ink);font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:.06em;text-transform:uppercase;padding:2px 10px}
+.flag-sub .tag{font-style:italic;color:var(--muted)}
+
+/* Ticker */
+.ticker{display:flex;gap:0;overflow-x:auto;border-bottom:3px solid var(--ink);margin-bottom:18px;scrollbar-width:thin}
+.tk{flex:0 0 auto;padding:8px 14px;border-right:1px solid #bdbab0;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;display:grid;gap:2px;min-width:190px}
+.tk .fin{font-size:10px;letter-spacing:.14em;color:var(--red);font-weight:600}
+.tk .ln{display:flex;justify-content:space-between;gap:10px}
+.tk .ln span:first-child{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk .w{font-weight:600}
+
+.front{display:grid;grid-template-columns:minmax(0,2.15fr) minmax(0,1fr);gap:28px}
+@media (max-width:880px){.front{grid-template-columns:minmax(0,1fr)}}
+
+.kicker{display:inline-block;background:var(--red);color:var(--red-ink);font-family:var(--display);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:15px;padding:1px 8px 0}
+.lead h1{font-family:var(--display);font-weight:900;text-transform:uppercase;line-height:.88;margin:10px 0 10px;text-wrap:balance;font-size:clamp(40px,6.6vw,86px)}
+.lead h1.long{font-size:clamp(34px,5.2vw,66px)}
+.dek{font-size:clamp(18px,2vw,22px);line-height:1.3;font-style:italic;margin:0 0 12px;text-wrap:balance}
+.byline{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:6px 0;margin-bottom:14px}
+
+.bigscore{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;border:3px solid var(--ink);margin-bottom:16px;position:relative;overflow:hidden}
+.bigscore::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--ink) 1px,transparent 1.4px);background-size:7px 7px;opacity:.1;pointer-events:none}
+.bs-side{padding:12px 14px;display:grid;gap:2px;min-width:0;position:relative}
+.bs-side.r{text-align:right}
+.bs-team{font-family:var(--display);font-weight:800;font-size:clamp(17px,2.2vw,24px);text-transform:uppercase;line-height:1;overflow-wrap:anywhere}
+.bs-mgr{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.bs-pts{font-family:var(--display);font-weight:900;font-size:clamp(40px,6vw,72px);line-height:.9;font-variant-numeric:tabular-nums}
+.bs-side.win .bs-pts{color:var(--red)}
+.bs-mid{background:var(--ink);color:var(--paper);font-family:var(--display);font-weight:800;writing-mode:vertical-rl;text-orientation:mixed;letter-spacing:.2em;padding:8px 6px;font-size:14px;text-align:center;position:relative}
+
+.cols{columns:2 280px;column-gap:26px;column-rule:1px solid #bdbab0}
+.story p{margin:0 0 .8em;font-size:16.5px;line-height:1.55;hyphens:auto}
+.story p:first-child::first-letter{font-family:var(--display);font-weight:900;float:left;font-size:4.1em;line-height:.8;padding:4px 6px 0 0;color:var(--red)}
+.lead .next{font-family:var(--mono);font-size:12px;border-top:1px solid var(--ink);padding-top:8px;margin-top:6px}
+
+/* Rail */
+.rail{display:grid;gap:22px;align-content:start;min-width:0}
+.box h3,.sec-h{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:24px;letter-spacing:.02em;margin:0 0 8px;border-bottom:3px solid var(--ink);padding-bottom:3px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.box h3 small,.sec-h small{font-family:var(--mono);font-size:10.5px;font-weight:400;letter-spacing:.12em;color:var(--muted)}
+.award{display:grid;gap:1px;padding:8px 0;border-bottom:1px solid #bdbab0}
+.award .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:600}
+.award .who{font-family:var(--display);font-weight:800;font-size:21px;text-transform:uppercase;line-height:1.02}
+.award .why{font-size:14px;line-height:1.4;color:var(--muted)}
+table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.stand th{text-align:right;font-weight:600;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--ink);padding:4px 3px}
+.stand td{text-align:right;padding:5px 3px;border-bottom:1px solid #d3d0c6}
+.stand th:nth-child(2),.stand td:nth-child(2){text-align:left}
+.stand td:nth-child(2){max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--body);font-weight:600;font-size:13.5px}
+.stand tr.cut td{border-bottom:2px solid var(--red)}
+.hot{background:var(--ink);color:var(--paper);padding:14px 16px}
+.hot h3{border-color:var(--paper);color:var(--paper)}
+.hot h3 small{color:#bdbab0}
+.hot .hh{font-family:var(--display);font-weight:800;font-size:25px;text-transform:uppercase;line-height:1;margin:4px 0 8px;text-wrap:balance}
+.hot p{margin:0 0 .7em;font-size:15px;line-height:1.5}
+
+/* Games */
+.section{margin-top:30px}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:26px 28px}
+.game{display:grid;gap:8px;align-content:start;border-top:3px solid var(--ink);padding-top:10px;min-width:0}
+.game h2{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:clamp(26px,3vw,33px);line-height:.92;margin:2px 0 0;text-wrap:balance}
+.game .dek{font-size:16.5px;margin:0}
+.box-score{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;background:var(--tint);padding:8px 10px;display:grid;gap:6px}
+.bx-h{display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.bx-h span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bx-h.w span:last-child{color:var(--red)}
+.bx-p{display:flex;justify-content:space-between;gap:10px;color:var(--muted);padding-left:10px}
+.bx-p span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.game .story p{font-size:15.5px}
+.game .story p:first-child::first-letter{font-size:3.2em}
+
+/* Wire + power */
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+@media (max-width:760px){.split{grid-template-columns:minmax(0,1fr)}}
+.wire-item{padding:8px 0;border-bottom:1px solid #bdbab0;font-size:15px;line-height:1.45}
+.wire-item b.t{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--red);display:block}
+.pp{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:baseline;padding:7px 0;border-bottom:1px solid #bdbab0}
+.pp .n{font-family:var(--display);font-weight:900;font-size:28px;line-height:1;min-width:1.4em}
+.pp .t{font-family:var(--display);font-weight:800;font-size:19px;text-transform:uppercase;line-height:1.05;overflow-wrap:anywhere}
+.pp .r{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pp .q{grid-column:2 / 4;font-size:14px;color:var(--muted);font-style:italic}
+.empty{font-style:italic;color:var(--muted)}
+.foot{margin-top:30px;border-top:6px double var(--ink);padding-top:10px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.nogames{padding:40px 0;text-align:center}
+.nogames h1{font-family:var(--display);font-weight:900;font-size:clamp(40px,7vw,80px);text-transform:uppercase;margin:0}
+.ai-mark{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted)}
+</style>
+
+<header class="press">
+  <div class="press-in">
+    <div class="brand">Waiver Wire Gazette <small>THE PRESS ROOM · FOR SLEEPER LEAGUES</small></div>
+    <form id="f" class="row" autocomplete="off">
+      <div class="fld"><label for="q">Sleeper username or league ID</label><input id="q" placeholder="e.g. gmorgan250 or 1180…" spellcheck="false"></div>
+      <div class="fld" id="lgWrap" hidden><label for="lg">League</label><select id="lg"></select></div>
+      <div class="fld"><label for="wk">Week</label><select id="wk"></select></div>
+      <button class="btn primary" type="submit" id="go">Print edition</button>
+      <button class="btn" type="button" id="ai" hidden>Punch it up with Claude</button>
+      <button class="btn" type="button" id="copy">Copy for group chat</button>
+      <button class="btn" type="button" id="more" aria-expanded="false" aria-controls="settings">Newsroom settings</button>
+    </form>
+    <div id="status" role="status"></div>
+    <div id="settings" class="settings" hidden>
+      <div class="fld"><label for="lore">League lore for the writers</label><textarea id="lore" placeholder="Rivalries, nicknames, running jokes. e.g. 'Balsamic Vinegar has a massive fan base in Italy.' Used when Claude writes the edition. Saved in this browser for this league."></textarea></div>
+      <div class="fld" id="keyWrap"><label for="key">Anthropic API key (hosted version only)</label><input id="key" type="password" placeholder="sk-ant-…"><label for="model" style="margin-top:6px">Model</label><input id="model" value="claude-sonnet-5-5"><p>Optional. Lets the hosted app write stories with Claude. The key stays in this browser and is sent only to Anthropic's API.</p></div>
+    </div>
+  </div>
+</header>
+<main class="desk"><article id="paper" class="paper" aria-live="polite"></article></main>
+
+<script>
+(() => {
+"use strict";
+const API = "https://api.sleeper.app/v1";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f2 = n => (Math.round((+n||0)*100)/100).toFixed(2);
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+};
+function hash(s){ let h=2166136261; for (const c of String(s)) { h^=c.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; }
+function rng(seed){ let a=seed|0; return () => { a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const pick = (r,arr) => arr[Math.floor(r()*arr.length)];
+const ord = n => n + (["th","st","nd","rd"][((n%100)-20)%10] || ["th","st","nd","rd"][n%100] || "th");
+const lastName = n => { const parts=String(n||"").split(" ").filter(p=>!/^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(p)); return parts[parts.length-1] || n; };
+const recStr = r => r ? `${r.w}-${r.l}${r.t?"-"+r.t:""}` : "0-0";
+const ELIG = {QB:["QB"],RB:["RB"],WR:["WR"],TE:["TE"],K:["K"],DEF:["DEF"],FLEX:["RB","WR","TE"],WRRB_FLEX:["RB","WR"],REC_FLEX:["WR","TE"],SUPER_FLEX:["QB","RB","WR","TE"],DL:["DL","DE","DT"],LB:["LB"],DB:["DB","CB","S"],IDP_FLEX:["DL","DE","DT","LB","DB","CB","S"]};
+const STAFF = ["Chip Waverly, Senior Gridiron Correspondent","Dot Halloran, Waiver Wire Bureau","Rex Pemberton III, Chief Hot Take Officer","Marge Kowalski, Lineup Desk","Buzz Ferrante, Late Window Reporter","Tip O'Rourke, Box Score Beat"];
+
+/* ---------------- Sleeper data ---------------- */
+async function getJSON(path){
+  let r;
+  try { r = await fetch(API + path); }
+  catch(e){ const err = new Error("network"); err.network = true; throw err; }
+  if (!r.ok) throw new Error(`Sleeper returned ${r.status} for ${path}`);
+  return r.json();
+}
+async function loadPlayers(){
+  const cached = store.get("wwg_players_v1");
+  if (cached) { try { const o = JSON.parse(cached); if (Date.now()-o.t < 3*864e5) return o.p; } catch(e){} }
+  const raw = await getJSON("/players/nfl");
+  const p = {};
+  for (const [id,v] of Object.entries(raw||{})) {
+    if (!v) continue;
+    const name = v.full_name || [v.first_name,v.last_name].filter(Boolean).join(" ");
+    p[id] = [name, v.position || (v.fantasy_positions||[])[0] || "", v.team || ""];
+  }
+  store.set("wwg_players_v1", JSON.stringify({t:Date.now(), p}));
+  return p;
+}
+async function fetchLeagueRaw(id, week, status){
+  status(`Pulling league ${id}…`);
+  const [league, users, rosters] = await Promise.all([getJSON(`/league/${id}`), getJSON(`/league/${id}/users`), getJSON(`/league/${id}/rosters`)]);
+  if (!league) throw new Error(`No Sleeper league found with ID ${id}.`);
+  status(`Pulling box scores through week ${week}…`);
+  const weeks = {};
+  const upto = Math.min(week+1, 18);
+  await Promise.all(Array.from({length:upto},(_,i)=>i+1).map(async w => { weeks[w] = await getJSON(`/league/${id}/matchups/${w}`).catch(()=>[]); }));
+  const txns = await getJSON(`/league/${id}/transactions/${week}`).catch(()=>[]);
+  status("Checking player names against the wire…");
+  const players = await loadPlayers().catch(()=>({}));
+  return {league, users: users||[], rosters: rosters||[], weeks, txns: txns||[], players};
+}
+
+/* ---------------- Model ---------------- */
+function buildModel(raw, week){
+  const {league, users, rosters, weeks, txns, players} = raw;
+  const userById = Object.fromEntries(users.map(u=>[u.user_id,u]));
+  const teams = {};
+  for (const r of rosters) {
+    const u = userById[r.owner_id] || {};
+    teams[r.roster_id] = {rid:r.roster_id, team:(u.metadata && u.metadata.team_name) || u.display_name || `Team ${r.roster_id}`, mgr:u.display_name || "an unclaimed roster"};
+  }
+  const slots = (league.roster_positions||[]).filter(s=>!["BN","IR","TAXI"].includes(s));
+  const P = id => {
+    const p = players[id];
+    if (p) return {name:p[0], pos:p[1], nfl:p[2]};
+    const isDef = /^[A-Z]{2,3}$/.test(id);
+    return {name: isDef ? `${id} D/ST` : `Player ${id}`, pos: isDef ? "DEF" : "", nfl: isDef ? id : ""};
+  };
+  const pairs = w => {
+    const by = {};
+    for (const m of (weeks[w]||[])) { if (m.matchup_id == null) continue; (by[m.matchup_id] = by[m.matchup_id] || []).push(m); }
+    return Object.entries(by).filter(([,a])=>a.length===2).map(([id,a])=>({id:+id, a:a[0], b:a[1]}));
+  };
+  const rec = {};
+  for (const rid in teams) rec[rid] = {w:0,l:0,t:0,pf:0,pa:0,res:[]};
+  let before = null, seasonHigh = null;
+  for (let w=1; w<=week; w++) {
+    if (w === week) before = JSON.parse(JSON.stringify(rec));
+    for (const g of pairs(w)) {
+      const pa = +g.a.points||0, pb = +g.b.points||0;
+      if (pa===0 && pb===0) continue;
+      const A = rec[g.a.roster_id], B = rec[g.b.roster_id];
+      if (!A || !B) continue;
+      A.pf+=pa; A.pa+=pb; B.pf+=pb; B.pa+=pa;
+      if (pa>pb){A.w++;B.l++;A.res.push("W");B.res.push("L");}
+      else if (pb>pa){B.w++;A.l++;B.res.push("W");A.res.push("L");}
+      else {A.t++;B.t++;A.res.push("T");B.res.push("T");}
+      for (const [m,rid] of [[pa,g.a.roster_id],[pb,g.b.roster_id]]) {
+        if (!seasonHigh || m > seasonHigh.pts) seasonHigh = {pts:m, rid, week:w};
+      }
+    }
+  }
+  const streak = r => { const a=r.res; if(!a.length) return {k:"",n:0}; const k=a[a.length-1]; let n=0; for (let i=a.length-1;i>=0&&a[i]===k;i--) n++; return {k,n}; };
+
+  const detail = m => {
+    const pp = m.players_points || {};
+    const starters = (m.starters||[]).map((id,i)=>({id, slot:slots[i]||"", pts:+((m.starters_points && m.starters_points[i]) ?? pp[id] ?? 0), ...P(id)})).filter(s=>s.id && s.id!=="0");
+    const sset = new Set(m.starters||[]);
+    const bench = (m.players||[]).filter(id=>!sset.has(id)).map(id=>({id, pts:+(pp[id]||0), ...P(id)}));
+    let blunder = null;
+    for (const b of bench) for (const s of starters) {
+      const el = ELIG[s.slot];
+      if (el ? !el.includes(b.pos) : s.pos !== b.pos) continue;
+      const gain = b.pts - s.pts;
+      if (gain > 0 && (!blunder || gain > blunder.gain)) blunder = {b, s, gain};
+    }
+    const sorted = [...starters].sort((x,y)=>y.pts-x.pts);
+    return {pts:+m.points||0, starters, bench, top:sorted.slice(0,3), best:sorted[0], worst:sorted[sorted.length-1], blunder};
+  };
+
+  const raws = pairs(week);
+  const allPts = [];
+  const games = raws.map(g => {
+    let A = {...teams[g.a.roster_id], ...detail(g.a)}, B = {...teams[g.b.roster_id], ...detail(g.b)};
+    if (B.pts > A.pts) [A,B] = [B,A];
+    for (const S of [A,B]) { S.before = before ? before[S.rid] : null; S.after = rec[S.rid]; S.streak = streak(rec[S.rid]); allPts.push(S.pts); }
+    return {id:g.id, W:A, L:B, tie:A.pts===B.pts, margin:A.pts-B.pts};
+  });
+  const played = allPts.some(p=>p>0);
+  const sortedPts = [...allPts].sort((a,b)=>b-a);
+  for (const g of games) for (const S of [g.W,g.L]) S.rank = sortedPts.indexOf(S.pts)+1;
+  const n = allPts.length;
+
+  const nextOpp = {};
+  for (const g of pairs(week+1)) { nextOpp[g.a.roster_id] = teams[g.b.roster_id]; nextOpp[g.b.roster_id] = teams[g.a.roster_id]; }
+
+  // tags / storylines
+  for (const g of games) {
+    const {W,L,margin} = g, t = [];
+    const add = (k,p) => t.push({k,p});
+    if (g.tie) add("tie", 92);
+    else {
+      if (L.blunder && L.blunder.gain > margin) add("bench_loss", 90);
+      if (margin < 2) add("nailbiter", 88);
+      if (L.before && L.before.l===0 && L.before.t===0 && L.before.w>=2) add("unbeaten_falls", 86);
+      if (W.before && L.before && week>1 && L.before.w - W.before.w >= 2) add("upset", 80);
+      if (seasonHigh && W.pts === seasonHigh.pts && seasonHigh.week === week && week>1) add("season_high", 76);
+      if (margin >= 40) add("blowout", 72);
+      if (W.before && W.before.w===0 && week>=3) add("first_win", 66);
+      if (L.rank <= 3 && n >= 8) add("unlucky", 62);
+      if (W.rank >= n-2 && n >= 8) add("lucky", 58);
+      if (W.streak.k==="W" && W.streak.n>=3) add("streak", 48);
+      if (margin >= 25 && margin < 40) add("rout", 46);
+      if (margin >= 2 && margin < 6) add("close", 40);
+      if (W.rank === 1) add("week_high", 44);
+    }
+    if (!t.length) add("default", 10);
+    t.sort((a,b)=>b.p-a.p);
+    g.tags = t; g.priority = t[0].p + Math.min(g.margin, 60)/100;
+  }
+
+  // awards
+  const starters = games.flatMap(g=>[g.W,g.L].flatMap(S=>S.starters.map(p=>({...p, team:S.team, mgr:S.mgr}))));
+  const pow = starters.reduce((a,b)=>!a||b.pts>a.pts?b:a, null);
+  const dud = starters.filter(p=>!["K","DEF"].includes(p.pos)).reduce((a,b)=>!a||b.pts<a.pts?b:a, null);
+  const blund = games.flatMap(g=>[g.W,g.L].map(S=>S.blunder?{...S.blunder, team:S.team, mgr:S.mgr, lost:S===g.L && !g.tie}:null)).filter(Boolean).reduce((a,b)=>!a||b.gain>a.gain?b:a, null);
+  const losers = games.filter(g=>!g.tie).map(g=>g.L), winners = games.filter(g=>!g.tie).map(g=>g.W);
+  const unlucky = losers.reduce((a,b)=>!a||b.pts>a.pts?b:a, null);
+  const lucky = winners.reduce((a,b)=>!a||b.pts<a.pts?b:a, null);
+  const top = games.flatMap(g=>[g.W,g.L]).reduce((a,b)=>!a||b.pts>a.pts?b:a, null);
+
+  // standings + power
+  const standings = Object.values(teams).map(t=>({...t, ...rec[t.rid], streak:streak(rec[t.rid])}))
+    .sort((a,b)=>(b.w+b.t/2)-(a.w+a.t/2) || b.pf-a.pf);
+  const maxPF = Math.max(1, ...standings.map(s=>s.pf));
+  const weekPts = Object.fromEntries(games.flatMap(g=>[[g.W.rid,g.W.pts],[g.L.rid,g.L.pts]]));
+  const maxWk = Math.max(1, ...Object.values(weekPts));
+  const power = standings.map(s=>{ const gp = s.w+s.l+s.t || 1; return {...s, wk:weekPts[s.rid]||0, score: 0.5*((s.w+s.t/2)/gp) + 0.3*(s.pf/maxPF) + 0.2*((weekPts[s.rid]||0)/maxWk)}; }).sort((a,b)=>b.score-a.score);
+
+  // transactions
+  const wire = (txns||[]).filter(t=>t.status==="complete").map(t=>{
+    const adds = Object.entries(t.adds||{}).map(([pid,rid])=>({p:P(pid), team:(teams[rid]||{}).team || "?"}));
+    const drops = Object.entries(t.drops||{}).map(([pid,rid])=>({p:P(pid), team:(teams[rid]||{}).team || "?"}));
+    return {type:t.type, adds, drops, bid:t.settings && t.settings.waiver_bid, teams:(t.roster_ids||[]).map(r=>(teams[r]||{}).team).filter(Boolean)};
+  });
+
+  const numTeams = Object.keys(teams).length;
+  const playoffLine = Math.min(numTeams, (league.settings && league.settings.playoff_teams) || Math.min(6, numTeams));
+  return {
+    leagueId: league.league_id, leagueName: league.name || "Fantasy League", season: league.season, week,
+    playoffs: !!(league.settings && league.settings.playoff_week_start && week >= league.settings.playoff_week_start),
+    games, played, n, awards:{pow, dud, blund, unlucky, lucky, top}, standings, power, playoffLine, wire, nextOpp, seasonHigh
+  };
+}
+
+/* ---------------- The writers' room (built-in) ---------------- */
+const KICK = {tie:"Deadlock",bench_loss:"Bench Blunder",nailbiter:"Instant Classic",unbeaten_falls:"Perfect No More",upset:"Upset Special",season_high:"Record Book",blowout:"Massacre",first_win:"Finally",unlucky:"Heartbreak",lucky:"Highway Robbery",streak:"Rolling",rout:"No Contest",close:"Down to the Wire",week_high:"Top Gun",default:"Final"};
+
+function writeGame(g, M, r, isLead){
+  const {W,L} = g, ws=f2(W.pts), ls=f2(L.pts), mg=f2(g.margin), wk=M.week;
+  const tag = g.tags[0].k, hero = W.best || {name:"the lineup",pts:0,pos:"",nfl:""}, lhero = L.best || {name:"nobody",pts:0};
+  const H = lastName(hero.name), bl = L.blunder;
+  const heads = {
+    tie: [`Nobody wins: ${W.team} and ${L.team} deadlocked at ${ws}`, `Dead even: ${W.team} ${ws}, ${L.team} ${ls}`],
+    bench_loss: [`Left on the pine: ${L.team} burned by benched ${bl && lastName(bl.b.name)}`, `${bl && f2(bl.gain)} points on the bench, and ${L.team} loses by ${mg}`],
+    nailbiter: [`Heart attack game: ${W.team} ${ws}, ${L.team} ${ls}`, `By a hair: ${L.team} edged by ${W.team} in ${mg}-point thriller`],
+    unbeaten_falls: [`${L.team} toppled from the ranks of the unbeaten`, `${W.team} ends ${L.team}'s unbeaten run`],
+    upset: [`Shocker! ${L.team} stunned by ${W.team}`, `Nobody saw it coming: ${W.team} over ${L.team}`],
+    season_high: [`${ws}-point explosion from ${W.team}`, `Record book: ${W.team} drops a season-high ${ws}`],
+    blowout: [`${L.team} buried by ${W.team}`, `Carnage: ${W.team} ${ws}, ${L.team} ${ls}`, `${L.team} flattened in ${mg}-point rout`],
+    first_win: [`Finally! First win of the season for ${W.team}`, `The drought is over for ${W.team}`],
+    unlucky: [`${ls} points and nothing to show for it: ${L.team} falls`, `Cruel game: ${L.team} scores ${ls}, still loses`],
+    lucky: [`Stick ‘em up: ${W.team} ${ws}, ${L.team} ${ls}`, `Ugly, but it counts: ${W.team} steals one`],
+    streak: [`${W.team.endsWith("s")?W.team:W.team} makes it ${W.streak.n} straight`, `No stopping ${W.team}: ${W.streak.n} in a row`],
+    rout: [`${L.team} dispatched by ${W.team}`, `${H} carries ${W.team} past ${L.team}`],
+    close: [`${W.team} survives ${L.team}`, `${H} powers ${W.team} past ${L.team}`],
+    week_high: [`${H} erupts as ${W.team} rolls`, `Top of the charts: ${W.team} posts week-best ${ws}`],
+    default: [`${H} powers ${W.team} past ${L.team}`, `${L.team} handled by ${W.team}`, `${W.team} ${ws}, ${L.team} ${ls}: business as usual`]
+  };
+  const headline = pick(r, heads[tag] || heads.default);
+  const dek = g.tie
+    ? `Both teams leave Week ${wk} at ${recStr(W.after)} and ${recStr(L.after)}, and nobody is happy about it`
+    : `${hero.name} scores ${f2(hero.pts)}; ${W.team} now ${recStr(W.after)}, ${L.team} ${recStr(L.after)}`;
+
+  const ledes = {
+    tie: `Nobody won. ${W.team} and ${L.team} both finished Week ${wk} at exactly ${ws} points, a fantasy tie that satisfies no one and will be relitigated for years.`,
+    bench_loss: bl ? `${L.team} had the points. They just weren't in the lineup. ${L.team} fell to ${W.team} ${ls}–${ws}, while ${bl.b.name} put up ${f2(bl.b.pts)} on the bench. That's ${f2(bl.gain)} more than starter ${bl.s.name}, and more than the ${mg}-point margin of defeat.` : "",
+    nailbiter: `Bring the smelling salts. ${W.team} held off ${L.team} ${ws}–${ls}, a margin of ${mg} points, or roughly one ${pick(r,["extra point","two-yard carry","garbage-time reception","kneel-down"])}.`,
+    unbeaten_falls: `The perfect season is over. ${L.team} entered Week ${wk} at ${recStr(L.before)} and left with a loss, falling ${ls}–${ws} to ${W.team}.`,
+    upset: `Nobody saw this one coming. ${W.team}, ${recStr(W.before)} entering the week, took down the ${recStr(L.before)} ${L.team} ${ws}–${ls}.`,
+    season_high: `${W.team} lit up the scoreboard for ${ws} points, the highest single-week total in the league this season, and ${L.team} (${ls}) had the misfortune of being the opponent.`,
+    blowout: `It was over before the late window. ${W.team} beat ${L.team} ${ws}–${ls}, a ${mg}-point margin that ${pick(r,["the league office is reviewing on humanitarian grounds","qualifies for the mercy rule in most states","will not be brought up at the draft party","set off car alarms across the league"])}.`,
+    first_win: `The drought is over. ${W.team} picked up its first win of the season, beating ${L.team} ${ws}–${ls}.`,
+    unlucky: `${L.team} scored ${ls} points, the ${ord(L.rank)}-highest total in the league this week, and lost anyway. ${W.team} put up ${ws} to win by ${mg}.`,
+    lucky: `${W.team} will take it. Its ${ws} points ranked ${ord(W.rank)} of ${M.n} this week, but that was enough to get past ${L.team} (${ls}).`,
+    streak: `${W.team} made it ${W.streak.n} straight, beating ${L.team} ${ws}–${ls}.`,
+    rout: `${W.team} never let this one get interesting, beating ${L.team} ${ws}–${ls}.`,
+    close: `${W.team} beat ${L.team} ${ws}–${ls} in a game that stayed tense deep into ${pick(r,["Sunday night","the late window","Monday night"])}.`,
+    week_high: `${W.team} posted the best score of Week ${wk}, and ${L.team} was the one standing in front of it, ${ws}–${ls}.`,
+    default: `${W.team} beat ${L.team} ${ws}–${ls} in Week ${wk}.`
+  };
+  const body = [];
+  body.push(ledes[tag] || ledes.default);
+  if (hero && W.top.length) {
+    let p = `${hero.name} (${[hero.pos,hero.nfl].filter(Boolean).join(", ")}) ${pick(r,["led the way","did the heavy lifting","carried the load","was the difference"])} with ${f2(hero.pts)} points`;
+    if (W.top[1]) p += `, and ${W.top[1].name} added ${f2(W.top[1].pts)}`;
+    p += `. For ${L.team}, ${lhero.name} ${pick(r,["kept it respectable","refused to go quietly","was a lone bright spot","did not go quietly"])} with ${f2(lhero.pts)}.`;
+    body.push(p);
+  }
+  const extra = [];
+  if (L.worst && L.worst.pts < 4 && !g.tie) extra.push(`${L.worst.name} contributed ${f2(L.worst.pts)} from the ${L.worst.slot || L.worst.pos} spot, ${pick(r,["which is being treated as a personnel matter","a performance the team has asked us not to print","and has reportedly been moved to a smaller locker"])}.`);
+  if (bl && tag !== "bench_loss" && bl.gain >= 8) extra.push(`The ${L.team} bench also housed ${bl.b.name} (${f2(bl.b.pts)}), who outscored starter ${bl.s.name} by ${f2(bl.gain)}.`);
+  if (!g.tie) extra.push(`${W.team} moves to ${recStr(W.after)}; ${L.team} drops to ${recStr(L.after)}.`);
+  if (extra.length) body.push(extra.join(" "));
+  const qL = [
+    `“We'll look at the tape,” said a visibly shaken member of the ${L.team} front office, before declining to look at the tape.`,
+    `“I set that lineup at 12:59,” a source close to ${L.team} admitted. “In hindsight, 12:58 was the move.”`,
+    `Reached for comment, ${L.team} manager @${L.mgr} said only: “Next question.”`,
+    `Sources say the ${L.team} group chat has been silent since the late window.`
+  ];
+  const qW = [
+    `“We knew,” said @${W.mgr}. Asked what exactly they knew, the manager walked away from the podium.`,
+    `“Process over results,” said @${W.mgr}, whose process this week was mostly ${hero.name}.`,
+    `@${W.mgr} celebrated by ${pick(r,["refreshing the matchup screen 41 times","setting next week's lineup immediately","sending a single trophy emoji to the group chat"])}.`
+  ];
+  if (!g.tie) body.push(isLead ? `${pick(r,qW)} ${pick(r,qL)}` : pick(r, r()<.5 ? qW : qL));
+  const next = !g.tie && M.nextOpp[W.rid] ? `Next week: ${W.team} vs. ${M.nextOpp[W.rid].team} · ${L.team} vs. ${(M.nextOpp[L.rid]||{}).team || "TBD"}` : "";
+  return {id:g.id, kicker:KICK[tag]||"Final", headline, dek, body, next};
+}
+
+function writeColumn(M, r){
+  const lead = M.power[0], last = M.power[M.power.length-1];
+  if (!lead || !last) return null;
+  return {
+    headline: pick(r,[`Stop pretending ${lead.team} isn't the team to beat`, `Somebody check on ${last.team}`]),
+    body: [
+      `After ${M.week} week${M.week>1?"s":""}, ${lead.team} sits at ${recStr(lead)} with ${f2(lead.pf)} points scored. You can call it luck. The standings don't.`,
+      `Meanwhile, ${last.team} is ${recStr(last)} and has scored ${f2(last.pf)} points. The waiver wire is open every Wednesday, @${last.mgr}. We checked.`
+    ]
+  };
+}
+
+function writeEdition(M){
+  const r = rng(hash(M.leagueId + ":" + M.week));
+  const byPrio = [...M.games].sort((a,b)=>b.priority-a.priority);
+  const leadG = byPrio[0];
+  const stories = {};
+  for (const g of M.games) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id)), g===leadG);
+  return {leadId: leadG ? leadG.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), ai:false};
+}
+
+/* ---------------- Render ---------------- */
+function boxScore(S, win){
+  return `<div class="bx-h ${win?"w":""}"><span>${esc(S.team)}</span><span>${f2(S.pts)}</span></div>` +
+    S.top.map(p=>`<div class="bx-p"><span>${esc(p.name)} <small>${esc(p.pos)}</small></span><span>${f2(p.pts)}</span></div>`).join("");
+}
+function paras(arr){ return (arr||[]).map(p=>`<p>${esc(p)}</p>`).join(""); }
+
+function render(){
+  const M = state.model, E = state.edition, paper = $("#paper");
+  const date = new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  const banner = state.sample
+    ? `<div class="banner"><b>SAMPLE EDITION.</b> A fictional league so you can see the paper. Enter a Sleeper username or league ID above to print yours.</div>`
+    : (state.early ? `<div class="banner"><b>EARLY EDITION.</b> Some Week ${M.week} games may still be in progress. Scores can change.</div>` : "");
+  const flag = `<div class="flag">
+    <div class="flag-top"><span>Vol. ${esc(M.season)} · Week ${M.week}${M.playoffs?" · Playoffs":""}</span><span>${esc(date)}</span><span>Price: one waiver claim</span></div>
+    <div class="masthead">${esc(M.leagueName)}</div>
+    <div class="flag-sub"><span class="ed">Week ${M.week} Final</span><span class="tag">All the scores that are fit to print · The Waiver Wire Gazette</span></div>
+  </div>`;
+  if (!M.played || !M.games.length) {
+    paper.innerHTML = banner + flag + `<div class="nogames"><h1>Presses on hold</h1><p class="empty">No Week ${M.week} scores yet for ${esc(M.leagueName)}. Pick an earlier week, or check back after kickoff.</p></div>`;
+    return;
+  }
+  const ticker = `<div class="ticker" aria-label="Scoreboard">${[...M.games].map(g=>`<div class="tk"><span class="fin">FINAL</span>
+    <div class="ln w"><span>${esc(g.W.team)}</span><span>${f2(g.W.pts)}</span></div>
+    <div class="ln"><span>${esc(g.L.team)}</span><span>${f2(g.L.pts)}</span></div></div>`).join("")}</div>`;
+
+  const lg = M.games.find(g=>g.id===E.leadId), ls = E.stories[E.leadId];
+  const leadHtml = lg && ls ? `<section class="lead">
+      <span class="kicker">${esc(ls.kicker)}</span>
+      <h1 class="${ls.headline.length>52?"long":""}">${esc(ls.headline)}</h1>
+      <p class="dek">${esc(ls.dek)}</p>
+      <div class="byline">By ${esc(E.byline)}${E.ai?' <span class="ai-mark">· written with Claude</span>':""}</div>
+      <div class="bigscore">
+        <div class="bs-side win"><span class="bs-team">${esc(lg.W.team)}</span><span class="bs-mgr">@${esc(lg.W.mgr)} · ${recStr(lg.W.after)}</span><span class="bs-pts">${f2(lg.W.pts)}</span></div>
+        <div class="bs-mid">FINAL</div>
+        <div class="bs-side r ${lg.tie?"win":""}"><span class="bs-team">${esc(lg.L.team)}</span><span class="bs-mgr">@${esc(lg.L.mgr)} · ${recStr(lg.L.after)}</span><span class="bs-pts">${f2(lg.L.pts)}</span></div>
+      </div>
+      <div class="story cols">${paras(ls.body)}</div>
+      ${ls.next?`<div class="next">${esc(ls.next)}</div>`:""}
+    </section>` : "";
+
+  const A = M.awards;
+  const award = (lbl, who, why) => who ? `<div class="award"><span class="lbl">${lbl}</span><span class="who">${esc(who)}</span><span class="why">${esc(why)}</span></div>` : "";
+  const rail = `<aside class="rail">
+    <div class="box"><h3>Week ${M.week} Awards</h3>
+      ${A.pow?award("Player of the week", A.pow.name, `${f2(A.pow.pts)} pts for ${A.pow.team}`):""}
+      ${A.top?award("Top score", A.top.team, `${f2(A.top.pts)} points, best in the league`):""}
+      ${A.blund?award("Bench blunder", A.blund.team, `Started ${A.blund.s.name} (${f2(A.blund.s.pts)}) over ${A.blund.b.name} (${f2(A.blund.b.pts)}). Cost: ${f2(A.blund.gain)} pts${A.blund.lost?", and possibly the game":""}.`):""}
+      ${A.unlucky?award("Unluckiest loser", A.unlucky.team, `Scored ${f2(A.unlucky.pts)} and still lost`):""}
+      ${A.lucky?award("Luckiest winner", A.lucky.team, `Won with just ${f2(A.lucky.pts)}`):""}
+      ${A.dud?award("Dud of the week", A.dud.name, `${f2(A.dud.pts)} pts as a starter for ${A.dud.team}`):""}
+    </div>
+    <div class="box"><h3>Standings <small>THRU WK ${M.week}</small></h3>
+      <div style="overflow-x:auto"><table class="stand"><thead><tr><th>#</th><th>Team</th><th>W-L</th><th>PF</th><th>Strk</th></tr></thead><tbody>
+      ${M.standings.map((s,i)=>`<tr class="${i+1===M.playoffLine && i<M.standings.length-1?"cut":""}"><td>${i+1}</td><td title="${esc(s.team)}">${esc(s.team)}</td><td>${recStr(s)}</td><td>${f2(s.pf)}</td><td>${s.streak.n?s.streak.k+s.streak.n:"–"}</td></tr>`).join("")}
+      </tbody></table></div>
+    </div>
+    ${E.column?`<div class="hot"><h3>The Hot Take <small>OPINION</small></h3><div class="hh">${esc(E.column.headline)}</div>${paras(E.column.body)}</div>`:""}
+  </aside>`;
+
+  const others = M.games.filter(g=>g.id!==E.leadId).sort((a,b)=>b.priority-a.priority);
+  const games = others.length ? `<section class="section"><h2 class="sec-h">Around the League <small>${others.length} MORE GAMES</small></h2><div class="games">
+    ${others.map(g=>{ const s=E.stories[g.id]; return `<article class="game">
+      <span><span class="kicker">${esc(s.kicker)}</span></span>
+      <h2>${esc(s.headline)}</h2>
+      <p class="dek">${esc(s.dek)}</p>
+      <div class="box-score">${boxScore(g.W,!g.tie)}${boxScore(g.L,false)}</div>
+      <div class="story">${paras(s.body)}</div>
+    </article>`; }).join("")}
+  </div></section>` : "";
+
+  const trades = M.wire.filter(t=>t.type==="trade");
+  const pickups = M.wire.filter(t=>t.type!=="trade" && t.adds.length).sort((a,b)=>(b.bid||0)-(a.bid||0)).slice(0,6);
+  const wireHtml = `<div><h2 class="sec-h">Transaction Wire <small>WEEK ${M.week}</small></h2>
+    ${trades.map(t=>{ const by={}; t.adds.forEach(a=>{(by[a.team]=by[a.team]||[]).push(a.p.name)}); return `<div class="wire-item"><b class="t">BLOCKBUSTER TRADE</b>${Object.entries(by).map(([tm,ps])=>`<strong>${esc(tm)}</strong> gets ${esc(ps.join(", "))}`).join(". ")}.</div>`; }).join("")}
+    ${pickups.map(t=>`<div class="wire-item"><b class="t">${t.type==="waiver"?"WAIVER CLAIM":"FREE AGENT"}${t.bid?` · $${t.bid} FAAB`:""}</b><strong>${esc(t.adds[0].team)}</strong> adds ${esc(t.adds.map(a=>`${a.p.name} (${a.p.pos})`).join(", "))}${t.drops.length?`, cuts ${esc(t.drops.map(d=>d.p.name).join(", "))}`:""}.</div>`).join("")}
+    ${!trades.length && !pickups.length ? `<p class="empty">A quiet week on the wire. Suspiciously quiet.</p>` : ""}
+  </div>`;
+  const quip = (i,len) => i===0 ? "The team to beat. For now." : i<3 ? "Contender, with receipts." : i>=len-2 ? "Thoughts and prayers." : i>=len-4 ? "Needs a trade. Or a miracle." : "Firmly in the mix.";
+  const powerHtml = `<div><h2 class="sec-h">Power Poll <small>RECORD · POINTS · FORM</small></h2>
+    ${M.power.map((s,i)=>`<div class="pp"><span class="n">${i+1}</span><span class="t">${esc(s.team)}</span><span class="r">${recStr(s)} · ${f2(s.pf)}</span><span class="q">${quip(i,M.power.length)} Week ${M.week}: ${f2(s.wk)}.</span></div>`).join("")}
+  </div>`;
+
+  paper.innerHTML = banner + flag + ticker + `<div class="front">${leadHtml}${rail}</div>` + games +
+    `<section class="section split">${wireHtml}${powerHtml}</section>` +
+    `<footer class="foot"><span>The Waiver Wire Gazette · independent fan project using Sleeper's public data · not affiliated with Sleeper</span><span>Quotes are satire. Box scores are not.</span></footer>`;
+}
+
+function editionText(){
+  const M = state.model, E = state.edition;
+  if (!M || !M.played) return "";
+  const L = [`📰 ${M.leagueName.toUpperCase()} · WEEK ${M.week} FINAL`, ""];
+  const ls = E.stories[E.leadId];
+  if (ls) { L.push(`🔥 ${ls.headline.toUpperCase()}`, ls.dek, ""); }
+  for (const g of M.games) L.push(`${g.W.team} ${f2(g.W.pts)} – ${g.L.team} ${f2(g.L.pts)}  |  ${E.stories[g.id].headline}`);
+  const A = M.awards; L.push("");
+  if (A.pow) L.push(`🏆 Player of the week: ${A.pow.name} (${f2(A.pow.pts)}, ${A.pow.team})`);
+  if (A.blund) L.push(`🪑 Bench blunder: ${A.blund.team} left ${f2(A.blund.gain)} on the pine (${A.blund.b.name})`);
+  if (A.unlucky) L.push(`💔 Unluckiest: ${A.unlucky.team}, ${f2(A.unlucky.pts)} in a loss`);
+  if (A.dud) L.push(`💩 Dud: ${A.dud.name}, ${f2(A.dud.pts)}`);
+  return L.join("\n");
+}
+
+/* ---------------- Claude writers ---------------- */
+function factsFor(M){
+  const side = S => ({team:S.team, manager:"@"+S.mgr, points:+f2(S.pts), record_after:recStr(S.after), week_rank:`${S.rank} of ${M.n}`, streak:S.streak.n?S.streak.k+S.streak.n:"",
+    top_starters:S.top.map(p=>`${p.name} (${p.pos}${p.nfl?", "+p.nfl:""}) ${f2(p.pts)}`), worst_starter:S.worst?`${S.worst.name} (${S.worst.pos}) ${f2(S.worst.pts)}`:null,
+    biggest_bench_mistake:S.blunder?`benched ${S.blunder.b.name} (${f2(S.blunder.b.pts)}) while starting ${S.blunder.s.name} (${f2(S.blunder.s.pts)})`:null,
+    next_opponent:(M.nextOpp[S.rid]||{}).team||null});
+  const A = M.awards;
+  return {
+    league:M.leagueName, season:M.season, week:M.week, playoffs:M.playoffs,
+    games:M.games.map(g=>({id:g.id, tie:g.tie, winner:side(g.W), loser:side(g.L), margin:+f2(g.margin), storylines:g.tags.map(t=>t.k)})),
+    awards:{player_of_week:A.pow&&`${A.pow.name} ${f2(A.pow.pts)} for ${A.pow.team}`, dud:A.dud&&`${A.dud.name} ${f2(A.dud.pts)} for ${A.dud.team}`, unluckiest_loser:A.unlucky&&`${A.unlucky.team} ${f2(A.unlucky.pts)}`, luckiest_winner:A.lucky&&`${A.lucky.team} ${f2(A.lucky.pts)}`},
+    standings:M.standings.map(s=>`${s.team} ${recStr(s)} PF ${f2(s.pf)}`),
+    trades:M.wire.filter(t=>t.type==="trade").map(t=>t.adds.map(a=>`${a.team} gets ${a.p.name}`).join("; "))
+  };
+}
+function promptFor(M, E, lore){
+  return `You are the sports desk of a loud, gripping tabloid sports newspaper covering a private fantasy football league among friends. Write this week's edition.
+
+VOICE: punchy tabloid headlines, vivid verbs, dramatic ledes, affectionate trash talk. Think back-page New York tabloid. Funny, never cruel; no jokes about anyone's real personal life, appearance, or identity.
+FACTS: use ONLY the numbers, players, records and results in the data below. Never invent stats, injuries, or events. You may invent obviously satirical anonymous quotes ("a source close to the team said...").
+${lore ? `LEAGUE LORE (weave in where it fits naturally):\n${lore}\n` : ""}
+Pick the most dramatic game as the lead story (the data lists storylines per game; "bench_loss", "nailbiter", "upset", "unbeaten_falls" are the juiciest).
+
+Reply with ONLY this JSON:
+{"lead":{"id":<game id>,"kicker":"<1-3 word label>","headline":"<max 11 words>","dek":"<one sentence subhead>","body":["<4-5 paragraphs, 50-90 words each>"]},
+ "games":[{"id":<game id>,"kicker":"<1-3 words>","headline":"<max 10 words>","dek":"<one sentence>","body":["<2-3 paragraphs, 40-70 words each>"]}],
+ "column":{"headline":"<hot take headline>","body":["<2 short opinion paragraphs about the league's big picture>"]}}
+"games" must include every game except the lead.
+
+DATA:
+${JSON.stringify(factsFor(M))}`;
+}
+async function aiWrite(){
+  const M = state.model; if (!M || !M.played) return;
+  const lore = $("#lore").value.trim();
+  const prompt = promptFor(M, state.edition, lore);
+  const btn = $("#ai"); btn.disabled = true;
+  setStatus("Writers are on deadline. Claude is drafting the edition (this can take a minute)…");
+  try {
+    let out;
+    if (state.sampleFn) {
+      out = await state.sampleFn.json(prompt, {modelTier:"default"});
+    } else {
+      const key = $("#key").value.trim();
+      if (!key) { openSettings(); setStatus("Add an Anthropic API key in Newsroom settings to have Claude write the edition.", true); return; }
+      const r = await fetch("https://api.anthropic.com/v1/messages", {method:"POST", headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body: JSON.stringify({model:$("#model").value.trim()||"claude-sonnet-5-5", max_tokens:8000, messages:[{role:"user", content:prompt}]})});
+      const data = await r.json();
+      if (!r.ok) throw {code:"api", message:(data.error && data.error.message) || ("HTTP "+r.status)};
+      const text = (data.content||[]).map(c=>c.text||"").join("");
+      out = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}")+1));
+    }
+    applyAI(out);
+    setStatus("Edition rewritten by Claude. Hit “Print edition” to go back to the house style.");
+  } catch(e) {
+    const msg = {not_granted:"Claude access wasn't allowed for this page.", rate_limited:"Claude is busy. Try again in a bit.", invalid_json:"The writers filed a garbled story. Try again.", cancelled:"Stopped."}[e && e.code] || ("Claude couldn't write the edition: " + ((e && e.message) || "unknown error"));
+    setStatus(msg, true);
+    if (e && e.code === "not_granted") $("#ai").hidden = true;
+  } finally { btn.disabled = false; }
+}
+function applyAI(out){
+  const E = state.edition, ids = new Set(state.model.games.map(g=>g.id));
+  const clean = s => ({kicker:String(s.kicker||"Final").slice(0,30), headline:String(s.headline||""), dek:String(s.dek||""), body:(Array.isArray(s.body)?s.body:[s.body]).filter(Boolean).map(String)});
+  if (out && out.lead && ids.has(+out.lead.id) && out.lead.headline) {
+    E.leadId = +out.lead.id;
+    E.stories[E.leadId] = {...E.stories[E.leadId], ...clean(out.lead)};
+  }
+  for (const s of (out && out.games) || []) if (ids.has(+s.id) && s.headline) E.stories[+s.id] = {...E.stories[+s.id], ...clean(s)};
+  if (out && out.column && out.column.headline) E.column = {headline:String(out.column.headline), body:(out.column.body||[]).map(String)};
+  E.ai = true;
+  render();
+}
+
+/* ---------------- Sample league ---------------- */
+function sampleRaw(){
+  const r = rng(20260928);
+  const T = [["Casco Bay Crushers","harborhawk"],["Lobster Roll Dynasty","buoybrain"],["Fog City Fumbles","mistymike"],["Head Light Heroes","lighthousejen"],["Moose Crossing","bigmoose22"],["Whoopie Pie Warriors","sugarrush"],["Allagash Attack","hopsandpops"],["Nor'easter Nation","stormchaser"],["Bangor Bruisers","bangorbill"],["Acadia All-Stars","summitsue"]];
+  const FIRST = ["Jalen","Marcus","Tre","Darius","Cole","Bryce","Malik","Devon","Isaiah","Caleb","Nico","Jaylen","Rashad","Tyler","Brock","Keenan","Amari","Drake","Quincy","Zay","Terrell","Omar","Luke","Dante","Kyler","Evan","Josh","Rico","Bo","Xavier"];
+  const LAST = ["Holloway","Brightwater","Kingsley","Okafor","Maddox","Pruitt","Whitlock","Sandoval","Achebe","Lindqvist","Fairbanks","Culpepper","Dunmore","Ravenel","Tolliver","Mercer","Beaumont","Quarles","Stroud-Ellis","Vance","Hargrove","Oduya","Pembroke","Castellanos","Winslow","Ashby","Delacroix","Farrow","Gentry","Ibarra","Kessler","Montague","Northcutt","Pasternak","Redwine","Salcedo","Thornbury","Underwood","Valdez","Yardley"];
+  const NFL = ["BUF","MIA","NYJ","NE","BAL","CIN","CLE","PIT","HOU","IND","JAX","TEN","DEN","KC","LV","LAC","DAL","NYG","PHI","WAS","CHI","DET","GB","MIN","ATL","CAR","NO","TB","ARI","LAR","SF","SEA"];
+  const DEFN = {BUF:"Buffalo Bills",MIA:"Miami Dolphins",NYJ:"New York Jets",NE:"New England Patriots",BAL:"Baltimore Ravens",CIN:"Cincinnati Bengals",CLE:"Cleveland Browns",PIT:"Pittsburgh Steelers",HOU:"Houston Texans",IND:"Indianapolis Colts"};
+  const players = {}; let pid = 1;
+  const used = new Set();
+  const mk = pos => { let nm; do { nm = pick(r,FIRST)+" "+pick(r,LAST); } while (used.has(nm)); used.add(nm); const id="s"+(pid++); players[id]=[nm,pos,pick(r,NFL)]; return id; };
+  const defs = Object.keys(DEFN);
+  const rosterPositions = ["QB","RB","RB","WR","WR","TE","FLEX","K","DEF","BN","BN","BN","BN","BN"];
+  const users = [], rosters = [], lineups = {};
+  T.forEach(([team,mgr],i) => {
+    users.push({user_id:"u"+i, display_name:mgr, metadata:{team_name:team}});
+    rosters.push({roster_id:i+1, owner_id:"u"+i});
+    const d = defs[i]; players[d] = [DEFN[d],"DEF",d];
+    lineups[i+1] = {QB:[mk("QB"),mk("QB")], RB:[mk("RB"),mk("RB"),mk("RB"),mk("RB")], WR:[mk("WR"),mk("WR"),mk("WR"),mk("WR")], TE:[mk("TE"),mk("TE")], K:[mk("K")], DEF:[d]};
+  });
+  const RANGE = {QB:[6,34],RB:[1,31],WR:[0,33],TE:[0,22],K:[1,16],DEF:[-4,19]};
+  const ptsFor = pos => { const [a,b]=RANGE[pos]; const v=a+(b-a)*Math.pow(r(),1.35); return Math.round(v*100)/100; };
+  const n = 10, ids = [...Array(n)].map((_,i)=>i+1), weeks = {};
+  for (let w=1; w<=4; w++) {
+    const rot = [ids[0], ...ids.slice(1).map((_,k,arr)=>arr[(k+w-1)%arr.length])];
+    const list = [];
+    for (let k=0;k<n/2;k++) {
+      for (const rid of [rot[k], rot[n-1-k]]) {
+        const L = lineups[rid], all = [...L.QB,...L.RB,...L.WR,...L.TE,...L.K,...L.DEF];
+        const pp = {}; all.forEach(id=>pp[id]= w<=3 ? ptsFor(players[id][1]) : 0);
+        const flexPick = r()<.5 ? L.RB[2] : L.WR[2];
+        const starters = [L.QB[0],L.RB[0],L.RB[1],L.WR[0],L.WR[1],L.TE[0],flexPick,L.K[0],L.DEF[0]];
+        const sp = starters.map(id=>pp[id]);
+        list.push({roster_id:rid, matchup_id:k+1, starters, starters_points:sp, players:all, players_points:pp, points:Math.round(sp.reduce((a,b)=>a+b,0)*100)/100});
+      }
+    }
+    weeks[w] = list;
+  }
+  const txns = [
+    {status:"complete", type:"trade", roster_ids:[3,7], adds:{[lineups[3].WR[0]]:7, [lineups[7].RB[0]]:3}, drops:{}, settings:{}},
+    {status:"complete", type:"waiver", roster_ids:[5], adds:{[mk("RB")]:5}, drops:{[lineups[5].RB[3]]:5}, settings:{waiver_bid:37}},
+    {status:"complete", type:"waiver", roster_ids:[9], adds:{[mk("WR")]:9}, drops:{[lineups[9].WR[3]]:9}, settings:{waiver_bid:12}},
+    {status:"complete", type:"free_agent", roster_ids:[2], adds:{[mk("K")]:2}, drops:{}, settings:{}}
+  ];
+  return {league:{league_id:"sample", name:"The Sample League", season:"2026", roster_positions:rosterPositions, settings:{playoff_week_start:15, playoff_teams:6}}, users, rosters, weeks, txns, players};
+}
+
+/* ---------------- App state + wiring ---------------- */
+const state = {model:null, edition:null, sample:true, early:false, sampleFn:null, raw:null, leagueId:null, nflState:null};
+function setStatus(msg, err){ const s=$("#status"); s.textContent = msg||""; s.classList.toggle("err", !!err); }
+function openSettings(){ $("#settings").hidden=false; $("#more").setAttribute("aria-expanded","true"); }
+const wkSel = $("#wk");
+for (let w=1; w<=18; w++) wkSel.add(new Option("Week "+w, w));
+
+function defaultWeek(ns){
+  if (!ns) return 3;
+  const cur = +ns.week || 1, day = new Date().getDay(); // 0 Sun … 6 Sat
+  if (ns.season_type !== "regular" && ns.season_type !== "post") return Math.max(1, Math.min(18, cur||1));
+  return Math.max(1, Math.min(18, (day===1||day===2) ? cur : cur-1));
+}
+
+function show(raw, week, isSample){
+  state.raw = raw; state.sample = isSample;
+  state.model = buildModel(raw, week);
+  state.edition = writeEdition(state.model);
+  const ns = state.nflState, day = new Date().getDay();
+  state.early = !isSample && ns && +ns.week === week && (day===0 || day===1);
+  const loreKey = "wwg_lore_" + state.model.leagueId;
+  $("#lore").value = store.get(loreKey) || "";
+  $("#lore").dataset.key = loreKey;
+  render();
+}
+
+async function loadLeague(id, week){
+  $("#go").disabled = true;
+  try {
+    const raw = await fetchLeagueRaw(id, week, m=>setStatus(m));
+    state.leagueId = id;
+    show(raw, week, false);
+    setStatus(`Week ${week} edition of ${raw.league.name} is on the stands.`);
+    try { const u = new URL(location.href); u.searchParams.set("league", id); u.searchParams.set("week", week); history.replaceState(null,"",u); } catch(e){}
+  } catch(e) {
+    setStatus(e.network ? "Couldn't reach Sleeper from this page. Inside Claude, pages can't call outside sites; open the hosted version of the app to load a live league." : e.message, true);
+  } finally { $("#go").disabled = false; }
+}
+
+async function resolveInput(){
+  const q = $("#q").value.trim();
+  const week = +wkSel.value;
+  if (!q) { setStatus("Enter a Sleeper username or league ID.", true); return; }
+  if (/^\d{9,}$/.test(q)) { $("#lgWrap").hidden = true; return loadLeague(q, week); }
+  $("#go").disabled = true;
+  try {
+    setStatus(`Looking up @${q}…`);
+    const user = await getJSON(`/user/${encodeURIComponent(q)}`);
+    if (!user || !user.user_id) throw new Error(`No Sleeper user named “${q}”. Check the spelling, or paste a league ID instead.`);
+    const season = (state.nflState && state.nflState.season) || String(new Date().getFullYear());
+    let leagues = await getJSON(`/user/${user.user_id}/leagues/nfl/${season}`) || [];
+    if (!leagues.length) throw new Error(`@${q} has no ${season} NFL leagues on Sleeper.`);
+    const sel = $("#lg"); sel.innerHTML = "";
+    leagues.forEach(l=>sel.add(new Option(l.name, l.league_id)));
+    $("#lgWrap").hidden = leagues.length < 2;
+    $("#go").disabled = false;
+    return loadLeague(leagues[0].league_id, week);
+  } catch(e) {
+    setStatus(e.network ? "Couldn't reach Sleeper from this page. Inside Claude, pages can't call outside sites; open the hosted version of the app to load a live league." : e.message, true);
+  } finally { $("#go").disabled = false; }
+}
+
+$("#f").addEventListener("submit", e => {
+  e.preventDefault();
+  if (state.sample && !$("#q").value.trim()) { show(state.raw, +wkSel.value > 3 ? 3 : +wkSel.value, true); setStatus("Showing the sample league. Enter your username or league ID to print yours."); return; }
+  if (!$("#lgWrap").hidden && state.leagueId && $("#q").value.trim() && !/^\d{9,}$/.test($("#q").value.trim()) && $("#lg").value) return loadLeague($("#lg").value, +wkSel.value);
+  resolveInput();
+});
+$("#lg").addEventListener("change", () => loadLeague($("#lg").value, +wkSel.value));
+$("#more").addEventListener("click", () => { const s=$("#settings"); s.hidden=!s.hidden; $("#more").setAttribute("aria-expanded", String(!s.hidden)); });
+$("#lore").addEventListener("input", e => { if (e.target.dataset.key) store.set(e.target.dataset.key, e.target.value); });
+$("#key").value = store.get("wwg_key") || "";
+$("#key").addEventListener("input", e => { store.set("wwg_key", e.target.value.trim()); $("#ai").hidden = !(state.sampleFn || e.target.value.trim()); });
+$("#model").value = store.get("wwg_model") || "claude-sonnet-5-5";
+$("#model").addEventListener("input", e => store.set("wwg_model", e.target.value.trim()));
+$("#ai").addEventListener("click", aiWrite);
+$("#copy").addEventListener("click", async () => {
+  const text = editionText(); if (!text) return;
+  try { await navigator.clipboard.writeText(text); setStatus("Copied. Paste it in the league chat."); }
+  catch(e) {
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.cssText="position:fixed;left:-9999px"; document.body.appendChild(ta); ta.select();
+    let ok=false; try { ok = document.execCommand("copy"); } catch(_){}
+    ta.remove(); setStatus(ok ? "Copied. Paste it in the league chat." : "Your browser blocked copying. Select the headlines on the page instead.", !ok);
+  }
+});
+
+// Boot: sample edition first, then look for live context
+show(sampleRaw(), 3, true);
+wkSel.value = "3";
+$("#ai").hidden = !$("#key").value.trim();
+(async () => {
+  if (window.claude && window.claude.use) {
+    $("#keyWrap").hidden = true;
+    try { const s = await window.claude.use("sample"); if (s) { state.sampleFn = s; $("#ai").hidden = false; } } catch(e){}
+  }
+})();
+(async () => {
+  try {
+    state.nflState = await getJSON("/state/nfl");
+    wkSel.value = String(defaultWeek(state.nflState));
+    let params = null; try { params = new URL(location.href).searchParams; } catch(e){}
+    const lid = params && params.get("league"), w = params && +params.get("week");
+    if (w) wkSel.value = String(w);
+    if (lid) { $("#q").value = lid; loadLeague(lid, +wkSel.value); }
+    else setStatus("Live Sleeper data connected. Enter your username or league ID.");
+  } catch(e) {
+    setStatus("Showing a sample league. Live Sleeper data loads in the hosted version of this app.");
+  }
+})();
+})();
+</script>
+</body></html>

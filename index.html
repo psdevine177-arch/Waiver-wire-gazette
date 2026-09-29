@@ -774,7 +774,7 @@ const ANG = {
     line:x=>``}
 };
 
-function writeGame(g, M, r, isLead){
+function writeGame(g, M, r, isLead, ed){
   const {W,L} = g, hero = W.best || {name:"the lineup",pts:0,pos:"",nfl:""}, lhero = L.best || {name:"nobody",pts:0};
   const x = {g, W:W.team, L:L.team, ws:f2(W.pts), ls:f2(L.pts), mg:f2(g.margin), wk:M.week, n:M.n, hl:plast(hero)};
   const a = g.primary, T = ANG[a.k] || ANG.default;
@@ -811,24 +811,118 @@ function writeGame(g, M, r, isLead){
   }
   if (!g.tie) extra.push(`${W.team} ${M.median!=null?"is now":"moves to"} ${recStr(W.after)}; ${L.team} ${M.median!=null?"sits at":"drops to"} ${recStr(L.after)}.`);
   if (extra.length) body.push(extra.join(" "));
-  const qL = [
-    `“We'll look at the tape,” said a visibly shaken member of the ${L.team} front office, before declining to look at the tape.`,
-    `“I set that lineup at 12:59,” a source close to ${L.team} admitted. “In hindsight, 12:58 was the move.”`,
-    `Reached for comment, ${L.team} manager @${L.mgr} said only: “Next question.”`,
-    `Sources say the ${L.team} group chat has been silent since the late window.`,
-    `@${L.mgr} was last seen staring at the waiver wire with the lights off.`
-  ];
-  const qW = [
-    `“We knew,” said @${W.mgr}. Asked what exactly they knew, the manager walked away from the podium.`,
-    `“Process over results,” said @${W.mgr}, whose process this week was mostly ${pname(hero)}.`,
-    `@${W.mgr} celebrated by ${pick(r,["refreshing the matchup screen 41 times","setting next week's lineup immediately","sending a single trophy emoji to the group chat"])}.`
-  ];
-  if (!g.tie) body.push(isLead ? `${pick(r,qW)} ${pick(r,qL)}` : pick(r, r()<.5 ? qW : qL));
+  if (!g.tie) { const c = closer(g, a, isLead, r, M, ed, x, hero); if (c) body.push(c); }
   const next = !g.tie && M.nextOpp[W.rid] ? `Next week: ${W.team} vs. ${M.nextOpp[W.rid].team} · ${L.team} vs. ${(M.nextOpp[L.rid]||{}).team || "TBD"}` : "";
   return {id:g.id, kicker:(M.playoffs ? "Playoffs · " : "") + T.kicker, headline, dek, body, next};
 }
 
 const PUNDIT = "Rex Pemberton III";
+
+/* ---------------- Closers: quotes, jabs, teasers (varied, relevant, sometimes nothing) ---------------- */
+const Q_LOSE = [
+  `“We'll look at the tape,” said a member of the {L} front office, before declining to look at the tape.`,
+  `“I set that lineup at 12:59,” a source close to {L} admitted. “In hindsight, 12:58 was the move.”`,
+  `Reached for comment, @{lm} said only: “Next question.”`,
+  `Sources say the {L} group chat has been silent since the late window.`,
+  `@{lm} was last seen staring at the waiver wire with the lights off.`,
+  `“It's a long season,” @{lm} said, sounding like someone who has said it a lot lately.`,
+  `“Honestly? I blame the refs,” said @{lm}, in a game where the refs do not affect fantasy scoring.`,
+  `An {L} spokesperson confirmed the team “is exploring all options,” including a new team name.`,
+  `@{lm} declined to speak with reporters but did change their profile picture.`,
+  `“Moral victory,” @{lm} insisted. The standings do not have a column for those.`,
+  `Asked what went wrong, @{lm} gestured vaguely at everything.`,
+  `{L} has called a team meeting. Expected attendance: one.`,
+  `“I'm not worried,” said @{lm}, who appeared worried.`,
+  `A source inside {L} described the mood as “fine,” then asked us to stop calling.`
+];
+const Q_WIN = [
+  `“We knew,” said @{wm}. Asked what exactly they knew, the manager walked away from the podium.`,
+  `“Process over results,” said @{wm}, whose process this week was mostly {hero}.`,
+  `@{wm} celebrated by refreshing the matchup screen 41 times.`,
+  `@{wm} sent a single trophy emoji to the group chat and logged off.`,
+  `“Never a doubt,” said @{wm}, who had several doubts.`,
+  `“Just happy to contribute,” said @{wm}, who contributed by pressing “set lineup.”`,
+  `@{wm} is reportedly already drafting a victory speech for December.`,
+  `“I'd like to thank {hero},” said @{wm}. “And nobody else.”`,
+  `{W} will reportedly frame this week's box score.`,
+  `“Put some respect on it,” @{wm} told reporters, to no one in particular.`,
+  `@{wm} described the win as “inevitable” and the opponent as “brave.”`
+];
+const Q_JAB = [
+  `{L} now turns its attention to next week, and possibly to a new hobby.`,
+  `The loss will be discussed at length in a group chat that {L} has muted.`,
+  `Somewhere, a fantasy analyst is quietly deleting a post about {L}.`,
+  `{W} moves on. {L} moves to the waiver wire.`,
+  `Film study for {L} is expected to be brief and painful.`,
+  `The {L} trophy case remains available for rent.`,
+  `{W} left with the win. {L} left with questions.`
+];
+const Q_TEASE = [
+  `Up next for {W}: {WN}. For {L}: {LN}, and presumably a long look in the mirror.`,
+  `{W} gets {WN} next. {L} gets {LN}, and a chance to forget this ever happened.`,
+  `Next week, {L} draws {LN}. {W} draws {WN}. Adjust your expectations accordingly.`
+];
+const Q_ANGLE = {
+  nailbiter: [`“My heart can't take this,” said @{wm}.`, `@{lm} has asked the league office to review “every decimal.”`, `“{mg} points. {mg},” @{lm} kept repeating, to no one.`],
+  blowout: [`“We'd prefer not to talk about it,” said @{lm}, who then did not talk about it.`, `“Mercy rule, anyone?” @{lm} asked. The league does not have a mercy rule.`, `@{wm} called the margin “a statement.” The statement was received.`],
+  proj_upset: [`“The projections don't play the games,” said @{wm}, who will be saying this until December.`, `“Nobody believed in us,” said @{wm}. This is accurate.`, `@{lm} is reportedly drafting a formal complaint to the projections.`],
+  record_upset: [`“Nobody believed in us,” said @{wm}. This is accurate.`, `“Records are just numbers,” said @{wm}, whose record is the smaller number.`],
+  true_blunder: [`“I had a good feeling about {starter},” @{lm} said. The feeling was wrong.`, `@{lm} has not looked at the bench since Sunday, sources say, and doesn't plan to.`, `“The projections said what?” @{lm} asked. The projections said {bench}.`],
+  hindsight: [`“Hindsight is 20/20,” said @{lm}. {bench} scored {bpts}.`, `@{lm} maintains the lineup was “defensible.” It was. It also lost.`],
+  unbeaten_falls: [`“Perfect seasons are overrated,” said @{lm}, who was pursuing one until Sunday.`, `“Somebody had to do it,” said @{wm}.`],
+  streak_snap: [`“Streaks are made to be broken,” said @{wm}, who did the breaking.`, `“All good things,” @{lm} sighed.`],
+  skid_over: [`“Feels good to feel good,” said @{wm}.`, `@{wm} reportedly teared up. Sources disagree on whether it was relief or disbelief.`],
+  first_win: [`“Feels good to feel good,” said @{wm}.`, `@{wm} reportedly teared up. Sources disagree on whether it was relief or disbelief.`, `{W} has asked the Gazette to print the word “WIN” in larger type. Request denied.`],
+  streak_extend: [`“One week at a time,” said @{wm}, who is taking it one win at a time.`, `“Don't jinx it,” @{wm} told this reporter, who is now jinxing it.`],
+  swing_up: [`“Same roster, different energy,” said @{wm}.`, `@{wm} credited the turnaround to “vibes.” We could not verify the vibes.`],
+  collapse: [`“I don't know who that was,” @{lm} said of their own team.`, `@{lm} has asked last week's lineup to come back.`],
+  season_high: [`“Frame it,” said @{wm}.`, `@{wm} has asked that the score be engraved somewhere permanent.`],
+  season_low: [`@{lm} asked the Gazette not to print the score. We printed the score.`, `“It can only go up from here,” said @{lm}. Mathematically, yes.`],
+  unlucky: [`“I'd have beaten almost anybody else,” @{lm} said. True, and useless.`, `“Put me in any other matchup,” said @{lm}. The schedule does not take requests.`],
+  lucky: [`“A win's a win,” said @{wm}, correctly and defensively.`, `@{wm} would like to remind everyone that style points do not exist.`],
+  boom: [`“I've been telling everybody about {p},” said @{wm}. Nobody can confirm this.`, `@{wm} has asked that {p} be referred to exclusively by first name from now on.`],
+  bust: [`“We're sticking with {p},” @{lm} said, less convincingly than last week.`, `@{lm} described {p}'s day as “a learning experience.” For whom was not specified.`],
+  injury: [`The Gazette wishes {p} a speedy recovery, and {L} a speedier waiver claim.`],
+  empty_slot: [`Asked about the empty lineup spot, @{lm} replied, “What empty lineup spot?”`, `@{lm} said they were “aware” of the open slot. The awareness arrived Monday.`],
+  zero_starter: [`@{lm} said they were “aware” of the zero. The awareness arrived Monday.`, `“In my defense,” @{lm} began, before realizing there was no defense.`],
+  revenge: [`“No hard feelings,” {p} did not say, because players do not read this paper.`, `@{lm} has reportedly stopped answering questions about the {p} decision.`],
+  trade_win: [`@{wm} would like everyone to remember who won the trade.`, `“Scouting,” said @{wm}, tapping the side of their head.`],
+  waiver_hero: [`“Scouting,” said @{wm}, tapping the side of their head.`, `@{wm} would like it noted that nobody else put in a claim.`],
+  new_leader: [`“Get used to it,” said @{wm}.`, `@{wm} has updated their group chat nickname to “No. 1.” It will be changed back by Wednesday.`],
+  dethroned: [`“It's a marathon,” said @{lm}, now running it from behind.`, `@{lm} has asked for a recount. There is nothing to recount.`],
+  titans: [`“This one had playoff energy,” said @{wm}.`, `@{lm} called it “a preview.” @{wm} called it “a result.”`],
+  basement: [`“Somebody had to win,” said @{wm}.`, `Neither manager would comment. Understandable.`]
+};
+function closer(g, a, isLead, r, M, ed, x, hero){
+  const W = g.W, L = g.L;
+  const p = a.d && a.d.p, bl = a.d && a.d.bl;
+  const vars = {W:W.team, L:L.team, wm:W.mgr, lm:L.mgr, hero:pname(hero), mg:x.mg,
+    WN:(M.nextOpp[W.rid]||{}).team, LN:(M.nextOpp[L.rid]||{}).team,
+    p: p ? pname(p) : "", starter: bl ? pname(bl.s) : "", bench: bl ? pname(bl.b) : "", bpts: bl ? f2(bl.b.pts) : ""};
+  const fill = s => s.replace(/\{(\w+)\}/g, (_,k)=>vars[k] ?? "");
+  const take = pool => {
+    const usable = s => !ed.used.has(s) && !/\{(\w+)\}/.test(s.replace(/\{(\w+)\}/g,(m,k)=>vars[k]?"":m));
+    // alternate halves of each pool by week, so back-to-back weeks never reuse a line
+    let ok = pool.filter((s,i)=>(pool.length < 2 || i % 2 === M.week % 2) && usable(s));
+    if (!ok.length) ok = pool.filter(usable);
+    if (!ok.length) return null;
+    const i = (ed.base + M.week*ed.step + ed.slot++) % ok.length;
+    ed.used.add(ok[i]); return fill(ok[i]);
+  };
+  const angle = Q_ANGLE[a.k] || [];
+  const roll = r();
+  if (isLead) {
+    const first = (angle.length && take(angle)) || take(r()<.5 ? Q_WIN : Q_LOSE);
+    const second = r() < .55 ? take(first && first.includes("@"+W.mgr) ? Q_LOSE : Q_WIN) : null;
+    return [first, second].filter(Boolean).join(" ") || null;
+  }
+  if (roll < .22) return null;                                     // sometimes the story just ends
+  if (roll < .55 && angle.length) return take(angle) || take(Q_LOSE);
+  if (roll < .72) return take(r()<.5 ? Q_WIN : Q_LOSE);
+  if (roll < .86 && vars.WN && vars.LN) return take(Q_TEASE);
+  return take(Q_JAB);
+}
+
 function writeColumn(M, r){
   const tk = M.take;
   if (!tk) return null;
@@ -912,7 +1006,9 @@ function writeEdition(M){
   const r = rng(hash(M.leagueId + ":" + M.week));
   const lead = [...M.games].sort((a,b)=>b.priority-a.priority)[0];
   const stories = {};
-  for (const g of M.games) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id)), g===lead);
+  const ed = {used:new Set(), slot:0, base:hash(M.leagueId), step:Math.max(7, M.games.length*2+1)};
+  const order = [lead, ...M.games.filter(g=>g!==lead)].filter(Boolean);
+  for (const g of order) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id)), g===lead, ed);
   return {leadId: lead ? lead.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), ai:false};
 }
 

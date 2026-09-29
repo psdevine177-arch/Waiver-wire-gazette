@@ -683,20 +683,41 @@ function buildModel(raw, week, opts = {}){
       return {rid:String(rid), team:teams[rid].team, mgr:teams[rid].mgr, rec:rec[rid], rank:rankAfter[rid], pf:rec[rid].pf, mean, sd, lo:Math.min(...sc), hi:Math.max(...sc), n:sc.length,
         bench:t.bench||0, luck:t.luck||0, streak:streakOf(rec[rid].res), stackTeam:stack[0], stackN:stack[1], unluckyLosses, ...act[rid]};
     });
+    const ledger = {};
+    for (let w=1; w<week; w++) for (const t of (txnsByWeek[w]||[])) {
+      if (t.status !== "complete" || t.type !== "trade") continue;
+      const adds = t.adds || {}, drops = t.drops || {};
+      const sides2 = [...new Set(Object.values(adds).map(String))];
+      const startPts = (rid, pids) => { let s=0; for (let x=w+1; x<=week; x++) { const m=(weeks[x]||[]).find(e=>String(e.roster_id)===rid); if (!m) continue; (m.starters||[]).forEach((id,i)=>{ if (pids.includes(id)) s += +((m.starters_points && m.starters_points[i]) ?? (m.players_points||{})[id] ?? 0); }); } return s; };
+      for (const rid of sides2) {
+        const got = Object.keys(adds).filter(p=>String(adds[p])===rid);
+        const gave = Object.keys(drops).filter(p=>String(drops[p])===rid && adds[p] != null);
+        const partner = gave.length ? String(adds[gave[0]]) : sides2.find(r=>r!==rid);
+        const gotPts = startPts(rid, got);
+        const gavePts = gave.reduce((a,p)=>a+startPts(String(adds[p]), [p]), 0);
+        const net = gotPts - gavePts;
+        if (!ledger[rid] || Math.abs(net) > Math.abs(ledger[rid].net)) ledger[rid] = {w, got:got.map(P), gave:gave.map(P), gotPts, gavePts, net, partner: partner && teams[partner] ? teams[partner].team : "a rival"};
+      }
+    }
+    for (const s of stats) s.deal = ledger[s.rid] || null;
     const N = stats.length;
+    const secondMost = k => { const v = col(k).sort((a,b)=>b-a); return v[1] || 0; };
+    const median = k => { const v = col(k).sort((a,b)=>a-b); return v[Math.floor(v.length/2)] || 0; };
     const pct = (arr, v) => arr.filter(x=>x < v).length / Math.max(1, arr.length-1);
     const col = k => stats.map(s=>s[k]);
     const SIGNS = [
       {k:"tinkerer", g:"♓", name:"The Tinkerer", fit:s=>bestBall?-1:pct(col("bench"),s.bench), why:s=>`${f2(s.bench)} pts left on the bench this season`},
       {k:"snakebitten", g:"♋", name:"The Snakebitten", fit:s=>s.unluckyLosses ? 0.5+0.2*s.unluckyLosses : pct(col("luck").map(x=>-x),-s.luck)*0.8, why:s=>s.unluckyLosses ? `${s.unluckyLosses} loss${s.unluckyLosses>1?"es":""} while outscoring most of the league` : `${Math.abs(s.luck).toFixed(1)} fewer wins than the points deserve`},
       {k:"frontrunner", g:"♌", name:"The Front-Runner", fit:s=>s.rank===1 ? 1.1 : 1-(s.rank-1)/N*1.6, why:s=>`${ord(s.rank)} in the standings, ${recStr(s.rec)}`},
-      {k:"hawk", g:"♒", name:"The Waiver Hawk", fit:s=>s.pickups ? pct(col("pickups"),s.pickups)+0.05*s.pickups : -1, why:s=>`${s.pickups} pickup${s.pickups!==1?"s":""} in ${week} week${week>1?"s":""}`},
+      {k:"hawk", g:"♒", name:"The Waiver Hawk", fit:s=>(s.pickups >= 4 && s.pickups >= 1.5*Math.max(1, median("pickups"))) ? pct(col("pickups"),s.pickups)+0.05*s.pickups : -1, why:s=>`${s.pickups} pickup${s.pickups!==1?"s":""} in ${week} week${week>1?"s":""}`},
       {k:"boom", g:"♈", name:"The Boom-or-Bust", fit:s=>s.n>=2 ? pct(col("sd"),s.sd) : -1, why:s=>`scores ranging from ${Math.round(s.lo)} to ${Math.round(s.hi)}`},
       {k:"metronome", g:"♉", name:"The Metronome", fit:s=>s.n>=3 ? pct(col("sd").map(x=>-x),-s.sd) : -1, why:s=>`every score between ${Math.round(s.lo)} and ${Math.round(s.hi)}`},
-      {k:"dealmaker", g:"♊", name:"The Dealmaker", fit:s=>s.trades ? 0.6+0.2*s.trades : -1, why:s=>`${s.trades} trade${s.trades>1?"s":""} this season`},
+      {k:"dealmaker", g:"♊", name:"The Dealmaker", fit:s=>(s.trades >= 3 && s.trades >= secondMost("trades") + 2) ? 0.6+0.1*s.trades : -1, why:s=>`${s.trades} trades, the most in the league by a mile`},
+      {k:"swindler", g:"♆", name:"The Swindler", fit:s=>s.deal && s.deal.net >= 12 ? 0.6 + Math.min(0.5, s.deal.net/80) : -1, why:s=>`up ${f2(s.deal.net)} pts on the Week ${s.deal.w} trade`},
+      {k:"mark", g:"☋", name:"The Mark", fit:s=>s.deal && s.deal.net <= -12 ? 0.6 + Math.min(0.5, -s.deal.net/80) : -1, why:s=>`down ${f2(-s.deal.net)} pts on the Week ${s.deal.w} trade`},
       {k:"setforget", g:"♑", name:"The Set-and-Forget", fit:s=>(s.pickups+s.trades)===0 ? 0.7 : pct(col("pickups").map(x=>-x),-s.pickups)*0.6, why:s=>(s.pickups+s.trades)===0 ? `zero roster moves all season` : `just ${s.pickups+s.trades} roster move${s.pickups+s.trades>1?"s":""} all season`},
       {k:"homer", g:"⚑", name:"The Homer", fit:s=>s.stackN>=3 ? 0.55+0.15*s.stackN : -1, why:s=>`${s.stackN} starters from the ${nflName(s.stackTeam)}`},
-      {k:"gambler", g:"♐", name:"The Gambler", fit:s=>s.faab>0 ? pct(col("faab"),s.faab)+0.1 : -1, why:s=>`$${s.faab} of FAAB spent`},
+      {k:"gambler", g:"♐", name:"The Gambler", fit:s=>(s.faab >= 20 && s.faab >= 1.5*Math.max(1, median("faab"))) ? pct(col("faab"),s.faab)+0.1 : -1, why:s=>`$${s.faab} of FAAB spent`},
       {k:"charm", g:"♎", name:"The Lucky Charm", fit:s=>s.luck>0.5 ? 0.4+0.25*s.luck : -1, why:s=>`${s.luck.toFixed(1)} more wins than the points deserve`},
       {k:"cellar", g:"♏", name:"The Cellar Dweller", fit:s=>s.rank===N ? 0.95 : -1, why:s=>`last place, ${recStr(s.rec)}`},
       {k:"juggernaut", g:"☄", name:"The Juggernaut", fit:s=>pct(col("pf"),s.pf)*0.9, why:s=>`${f2(s.pf)} points scored, ${ord(stats.filter(o=>o.pf>s.pf).length+1)} in the league`},
@@ -706,6 +727,10 @@ function buildModel(raw, week, opts = {}){
       {k:"latebloomer", g:"❀", name:"The Late Bloomer", fit:s=>0.02, why:s=>`still waiting for the season to start`, generic:true},
       {k:"bystander", g:"☁", name:"The Innocent Bystander", fit:s=>0.01, why:s=>`present, accounted for, unremarkable`, generic:true},
       {k:"understudy", g:"✧", name:"The Understudy", fit:s=>0.005, why:s=>`waiting for a bigger role`, generic:true},
+      {k:"blankslate", g:"◯", name:"The Blank Slate", fit:s=>0.004, why:s=>`no pattern yet, and the stars hate that`, generic:true},
+      {k:"slowburn", g:"♨", name:"The Slow Burn", fit:s=>0.003, why:s=>`warming up, allegedly`, generic:true},
+      {k:"sidekick", g:"⚐", name:"The Sidekick", fit:s=>0.002, why:s=>`in someone else's story, for now`, generic:true},
+      {k:"wanderer", g:"☍", name:"The Wanderer", fit:s=>0.001, why:s=>`destination unknown`, generic:true},
       {k:"streaker", g:"♍", name:"The Streaker", fit:s=>s.streak.n>=3 ? 0.45+0.1*s.streak.n : -1, why:s=>`${s.streak.n} straight ${s.streak.k==="W"?"wins":"losses"}`},
     ];
     // greedy unique assignment: best team-sign fits first
@@ -714,7 +739,7 @@ function buildModel(raw, week, opts = {}){
     const signOf = {}, usedSign = new Set();
     for (const p of pairsTS) if (!signOf[p.s.rid] && !usedSign.has(p.z.k)) { signOf[p.s.rid] = p.z; usedSign.add(p.z.k); }
     for (const s of stats) if (!signOf[s.rid]) {
-      const z = SIGNS.find(z=>!usedSign.has(z.k) && z.fit(s) > -0.5) || SIGNS.find(z=>!usedSign.has(z.k) && z.generic) || SIGNS.find(z=>!usedSign.has(z.k) && !(bestBall && z.k==="tinkerer")) || SIGNS[SIGNS.length-1];
+      const z = SIGNS.find(z=>!usedSign.has(z.k) && z.fit(s) > -0.5) || SIGNS.find(z=>!usedSign.has(z.k) && z.generic) || SIGNS.find(z=>z.generic);
       signOf[s.rid] = z; usedSign.add(z.k);
     }
 
@@ -1197,7 +1222,7 @@ const HORO_JAB = {
          s=>`You are either the best team in the league or the worst, depending on the day. The stars have learned not to ask which.`],
   metronome: [s=>`Every week, somewhere between ${Math.round(s.lo)} and ${Math.round(s.hi)}. The stars find you comforting and a little beige.`,
               s=>`You are the most predictable team in the league. The stars could set a watch by you. They have.`],
-  dealmaker: [s=>`${s.trades} trade${s.trades>1?"s":""} already. Mercury is permanently lodged in your trade block.`,
+  dealmaker: [s=>`${s.trades} trades already. Mercury is permanently lodged in your trade block.`,
               s=>`You would trade your starting lineup for a firm handshake. The stars have seen your trade history and are concerned.`],
   setforget: [s=>`${s.pickups+s.trades===0?"Zero":"Barely any"} roster moves. The stars checked on you. You are alive, just asleep.`,
               s=>`Your roster has not changed since the draft party. The stars admire the commitment and question the strategy.`],
@@ -1214,13 +1239,22 @@ const HORO_JAB = {
   streaker: [s=>s.streak.k==="W" ? `${s.streak.n} straight wins. The stars have stopped betting against you. For now.` : `${s.streak.n} straight losses. The stars are not laughing. Mostly.`,
              s=>s.streak.k==="W" ? `You have won ${s.streak.n} in a row, and the stars can feel the league getting nervous.` : `${s.streak.n} losses in a row. The stars see a pattern. You should too.`],
 };
+const plist = ps => ps.length ? ps.map(pname).join(" and ") : "future considerations";
 Object.assign(HORO_JAB, {
+  swindler: [s=>`You sent ${plist(s.deal.gave)} to ${s.deal.partner} for ${plist(s.deal.got)}. Since then: ${f2(s.deal.gotPts)} points for you, ${f2(s.deal.gavePts)} for them. The stars suspect a heist.`,
+             s=>`The Week ${s.deal.w} trade with ${s.deal.partner} has paid you ${f2(s.deal.net)} points more than it paid them. The stars call it business. ${s.deal.partner} calls it something else.`],
+  mark: [s=>`You gave up ${plist(s.deal.gave)} for ${plist(s.deal.got)}. Since then: ${f2(s.deal.gavePts)} points for ${s.deal.partner}, ${f2(s.deal.gotPts)} for you. The stars are too polite to say it. Everyone else is not.`,
+         s=>`The Week ${s.deal.w} trade with ${s.deal.partner} is ${f2(-s.deal.net)} points in their favor and climbing. The stars suggest you stop checking.`],
   wildcard: [s=>`The stars have studied your team for weeks and remain genuinely baffled. That is either a compliment or a warning.`],
   enigma: [s=>`${recStr(s.rec)}. The stars have looked at it from every angle and still cannot tell if you are good.`],
   darkhorse: [s=>`Nobody is talking about you. The stars suspect you prefer it that way.`],
   latebloomer: [s=>`The stars sense your best football is ahead of you. Mostly because it could hardly be behind you.`],
   bystander: [s=>`You are neither hero nor villain this season. The stars have filed you under “miscellaneous.”`],
   understudy: [s=>`You have been waiting in the wings all season. The stars hear a cue coming.`],
+  blankslate: [s=>`The stars have nothing on you yet. No trades, no drama, no pattern. They find this deeply suspicious.`],
+  slowburn: [s=>`You are not hot yet. The stars insist you are warming up. The stars have said this to other teams. Some of them are still warming up.`],
+  sidekick: [s=>`So far you are a supporting character in someone else's season. The stars see a spinoff in your future.`],
+  wanderer: [s=>`You have no clear direction and the stars respect it. Not every team needs a plan. Most do, though.`],
 });
 const HORO_QUIET = [
   "Your season is over. The stars see golf, yard work and a very quiet Sunday.",
@@ -1294,8 +1328,9 @@ const HORO_LUCK = {
   streaker:["Lucky day: next Sunday. Or not. The stars are not a sportsbook.","Lucky phrase: “one week at a time.”"],
 };
 Object.assign(HORO_LUCK, {
+  swindler:["Lucky number: the points differential. Frame it.","Avoid: eye contact with your trade partner."], mark:["Lucky move: never trading with them again.","Lucky phrase: \u201cit's a long season.\u201d"],
   wildcard:["Lucky number: roll a die."], enigma:["Lucky shape: a question mark."], darkhorse:["Lucky animal: take a guess."],
-  latebloomer:["Lucky season: next one. Or this one. Unclear."], bystander:["Lucky outcome: a tie. Nobody wins, nobody cries."], understudy:["Lucky moment: any minute now."],
+  latebloomer:["Lucky season: next one. Or this one. Unclear."], blankslate:["Lucky move: any move, just to give the stars something."], slowburn:["Lucky temperature: rising, supposedly."], sidekick:["Lucky role: main character. Audition this week."], wanderer:["Lucky direction: forward, ideally."], bystander:["Lucky outcome: a tie. Nobody wins, nobody cries."], understudy:["Lucky moment: any minute now."],
 });
 function writeHoroscopes(M, variant){
   if (!M.horo || !M.horo.list || !M.horo.list.length) return null;

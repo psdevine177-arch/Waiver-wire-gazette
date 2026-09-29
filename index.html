@@ -243,8 +243,9 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
       <button class="btn primary" type="submit" id="go">Print edition</button>
       <button class="btn" type="button" id="regen" title="Pull the latest scores and rewrite the stories">Refresh &amp; rewrite</button>
       <button class="btn" type="button" id="dl" aria-expanded="false" aria-controls="dlMenu">Download newspaper</button>
+      <button class="btn" type="button" id="share" hidden>Share</button>
     </form>
-    <div id="dlMenu" class="dl-menu" hidden><button class="btn primary" type="button" id="dlPdf">Full paper (PDF)</button><button class="btn" type="button" id="dlImg">Front page (image)</button><button class="btn" type="button" id="shareLink" hidden>Copy link to this edition</button></div>
+    <div id="dlMenu" class="dl-menu" hidden><button class="btn primary" type="button" id="dlPdf">Full paper (PDF)</button><button class="btn" type="button" id="dlImg">Front page (image)</button></div>
     <div id="status" role="status"></div>
   </div>
 </header>
@@ -1025,7 +1026,7 @@ function paras(arr){ return (arr||[]).map(p=>`<p>${esc(p)}</p>`).join(""); }
 
 function render(){
   const M = state.model, E = state.edition, paper = $("#paper");
-  const date = new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  const date = editionDate().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   const banner = state.sample
     ? `<div class="banner"><b>SAMPLE EDITION.</b> A fictional league so you can see the paper. Enter a Sleeper username or league ID above to print yours.</div>`
     : (state.early ? `<div class="banner"><b>EARLY EDITION.</b> Some Week ${M.week} games may still be in progress. Scores can change.</div>` : "");
@@ -1136,7 +1137,7 @@ function gazetteName(M){ return /gazette$/i.test(M.leagueName.trim()) ? M.league
 
 function npHTML(M, E){
   const name = gazetteName(M);
-  const date = new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  const date = editionDate().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
   const lg = M.games.find(g=>g.id===E.leadId), ls = E.stories[E.leadId];
   const others = M.games.filter(g=>g.id!==E.leadId).sort((a,b)=>b.priority-a.priority);
   const chunks = []; for (let i=0;i<others.length;i+=4) chunks.push(others.slice(i,i+4));
@@ -1359,13 +1360,24 @@ function defaultWeek(ns){
   return Math.max(1, Math.min(18, (day===1||day===2) ? cur : cur-1));
 }
 
+const SITE = "https://waiverwiregazette.com";
+const isoDay = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function editionDate(){
+  const m = state.pinDate && /^(\d{4})-(\d{2})-(\d{2})$/.exec(state.pinDate);
+  return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date();
+}
+// A shared edition's settings (rewrite version, print date) only apply until the reader changes something
+function clearShared(){
+  state.pinDate = null;
+  try { if (location.search) history.replaceState(null, "", location.pathname); } catch(e){}
+}
 function show(raw, week, isSample, variant = 0){
   state.raw = raw; state.sample = isSample;
   const ns0 = state.nflState;
   state.model = buildModel(raw, week, {injFresh: isSample || !ns0 || week >= +ns0.week - 1});
   state.edition = writeEdition(state.model, variant);
   state.variant = variant; state.week = week;
-  $("#shareLink").hidden = isSample;
+  $("#share").hidden = isSample;
   const ns = state.nflState, day = new Date().getDay();
   state.early = !isSample && ns && +ns.week === week && (day===0 || day===1);
   render();
@@ -1408,22 +1420,30 @@ async function resolveInput(){
 
 $("#f").addEventListener("submit", e => {
   e.preventDefault();
+  clearShared();
   if (state.sample && !$("#q").value.trim()) { show(state.raw, +wkSel.value > 3 ? 3 : +wkSel.value, true); setStatus("Showing the sample league. Enter your username or league ID to print yours."); return; }
   if (!$("#lgWrap").hidden && state.leagueId && $("#q").value.trim() && !/^\d{9,}$/.test($("#q").value.trim()) && $("#lg").value) return loadLeague($("#lg").value, +wkSel.value);
   resolveInput();
 });
-$("#lg").addEventListener("change", () => loadLeague($("#lg").value, +wkSel.value));
+$("#lg").addEventListener("change", () => { clearShared(); loadLeague($("#lg").value, +wkSel.value); });
 $("#regen").addEventListener("click", () => {
+  clearShared();
   const v = (state.variant || 0) + 1;
   if (state.sample || !state.leagueId) { show(state.raw, state.week || 3, true, v); setStatus("Rewritten. Same scores, fresh copy."); return; }
   try { localStorage.removeItem("wwg_players_v2"); } catch(e){}
   loadLeague(state.leagueId, +wkSel.value, v).then(()=>{ if (!$("#status").classList.contains("err")) setStatus(`Refreshed with the latest scores and rewritten. Week ${wkSel.value}.`); });
 });
-$("#shareLink").addEventListener("click", async () => {
-  let link = location.href;
-  try { const u = new URL(location.href); u.search = ""; u.hash = ""; u.searchParams.set("league", state.leagueId); u.searchParams.set("week", state.week); link = u.toString(); } catch(e){}
-  try { await navigator.clipboard.writeText(link); setStatus("Link copied. Anyone who opens it lands on this league and week."); }
-  catch(e) { setStatus("Copy blocked by your browser. Here's the link: " + link); }
+$("#share").addEventListener("click", async () => {
+  if (state.sample || !state.leagueId || !state.model) return;
+  const q = new URLSearchParams({league: state.leagueId, v: String(state.variant || 0), d: state.pinDate || isoDay(new Date())});
+  const url = `${SITE}/w/${state.week}/?${q.toString()}`;
+  const text = `The Week ${state.week} edition of ${gazetteName(state.model)} is on the stands.`;
+  if (navigator.share) {
+    try { await navigator.share({title: `Week ${state.week} Recap`, text, url}); setStatus("Shared."); return; }
+    catch(e) { if (e && e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); setStatus("Link copied. Paste it anywhere. It opens straight to this edition."); }
+  catch(e) { setStatus("Here's your link: " + url); }
 });
 $("#dl").addEventListener("click", () => { const m=$("#dlMenu"); m.hidden=!m.hidden; $("#dl").setAttribute("aria-expanded", String(!m.hidden)); });
 $("#dlPdf").addEventListener("click", () => downloadPaper("pdf"));
@@ -1438,8 +1458,10 @@ wkSel.value = "3";
     wkSel.value = String(defaultWeek(state.nflState));
     let params = null; try { params = new URL(location.href).searchParams; } catch(e){}
     const lid = params && params.get("league"), w = params && +params.get("week");
-    if (w) wkSel.value = String(w);
-    if (lid) { $("#q").value = lid; loadLeague(lid, +wkSel.value); }
+    const v = params && Math.max(0, parseInt(params.get("v") || "0", 10) || 0), d = params && params.get("d");
+    if (w >= 1 && w <= 18) wkSel.value = String(w);
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) state.pinDate = d;
+    if (lid) { $("#q").value = lid; loadLeague(lid, +wkSel.value, v); }
     else setStatus("Live Sleeper data connected. Enter your username or league ID.");
   } catch(e) {
     setStatus("Showing a sample league. Live Sleeper data loads in the hosted version of this app.");

@@ -217,6 +217,37 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .np-pp .q{font-size:calc(var(--fs)*.85);color:var(--np-mute);font-style:italic}
 .np-foot{margin-top:auto;border-top:4px double var(--np-rule);padding-top:6px;font-family:var(--mono);font-size:11px;color:var(--np-mute);text-align:center}
 .dl-menu{display:flex;flex-wrap:wrap;gap:8px}
+/* Horoscopes (web) */
+.horo-hd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 18px;align-items:end;border-bottom:1px solid var(--ink);padding:12px 0 10px}
+.horo-hd .t{font-family:"Manufacturing Consent","Old English Text MT",Georgia,serif;font-size:clamp(40px,6vw,60px);line-height:1}
+.horo-hd .by{font-style:italic;font-size:16px;color:var(--muted);padding-bottom:6px;min-width:0}
+.horo-hd .by b{display:block;font-family:var(--mono);font-style:normal;font-weight:600;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);margin-bottom:3px}
+@media (max-width:560px){.horo-hd{grid-template-columns:minmax(0,1fr)}}
+.horo{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:0 40px}
+.hs{display:grid;grid-template-columns:48px minmax(0,1fr);gap:3px 14px;padding:15px 0;border-bottom:1px solid #bdbab0;align-content:start}
+.hs .g{grid-row:1 / span 6;width:46px;height:46px;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-size:25px;line-height:1;font-family:"Segoe UI Symbol","Apple Symbols","DejaVu Sans",serif}
+.hs .sg{font-family:var(--display);font-weight:800;font-size:21px;text-transform:uppercase;letter-spacing:.03em;line-height:1}
+.hs .sg span{display:block;font-family:var(--mono);font-weight:400;font-size:10.5px;letter-spacing:.1em;color:var(--muted);margin-top:3px}
+.hs .tm{font-family:var(--mono);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--red);overflow-wrap:anywhere}
+.hs .tx{font-size:15px;line-height:1.45}
+.hs .pr{font-style:italic}
+.hs .pr b{font-family:var(--mono);font-style:normal;font-weight:600;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--red);margin-right:6px}
+.hs .lk{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;margin-top:2px}
+.horo-foot{font-style:italic;font-size:13px;color:var(--muted);margin-top:10px}
+/* Horoscopes (print) */
+.np-horo{display:grid;grid-template-columns:1fr 1fr;gap:0 34px}
+.np-hs{display:grid;grid-template-columns:40px minmax(0,1fr);gap:2px 12px;padding:10px 0;border-bottom:1px solid #b9b2a2;align-content:start;break-inside:avoid}
+.np-hs .g{grid-row:1 / span 6;width:38px;height:38px;border:2px solid var(--np-ink);border-radius:50%;display:grid;place-items:center;font-size:20px;line-height:1;font-family:"Segoe UI Symbol","Apple Symbols","DejaVu Sans",serif}
+.np-hs .sg{font-family:var(--display);font-weight:800;font-size:calc(var(--fs)*1.25);text-transform:uppercase;line-height:1}
+.np-hs .sg span{display:block;font-family:var(--mono);font-weight:400;font-size:10px;letter-spacing:.1em;color:var(--np-mute);margin-top:2px}
+.np-hs .tm{font-family:var(--mono);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--np-red)}
+.np-hs .tx{font-size:var(--fs);line-height:1.4}
+.np-hs .pr{font-style:italic}.np-hs .pr b{font-family:var(--mono);font-style:normal;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--np-red);margin-right:5px}
+.np-hs .lk{font-family:var(--mono);font-size:10.5px;color:var(--np-mute)}
+.np-horo-hd{display:flex;align-items:flex-end;gap:18px;border-bottom:1px solid var(--np-ink);padding-bottom:8px}
+.np-horo-hd .t{font-family:"Manufacturing Consent","Old English Text MT",Georgia,serif;font-size:64px;line-height:1}
+.np-horo-hd .by{font-style:italic;font-size:16px;color:var(--np-mute)}.np-horo-hd .by b{display:block;font-family:var(--mono);font-style:normal;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--np-red)}
+
 .np-teasers{border-top:3px solid var(--np-ink);padding-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:10px 22px}
 .np-teasers .hd{grid-column:1/-1;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--np-mute)}
 .np-tz{display:flex;flex-direction:column;gap:2px;border-bottom:1px solid #b9b2a2;padding-bottom:6px}
@@ -280,16 +311,16 @@ async function getJSON(path, base){
   return r.json();
 }
 async function loadPlayers(){
-  const cached = store.get("wwg_players_v2");
+  const cached = store.get("wwg_players_v3");
   if (cached) { try { const o = JSON.parse(cached); if (Date.now()-o.t < 864e5) return o.p; } catch(e){} }
   const raw = await getJSON("/players/nfl");
   const p = {};
   for (const [id,v] of Object.entries(raw||{})) {
     if (!v) continue;
     const name = v.full_name || [v.first_name,v.last_name].filter(Boolean).join(" ");
-    p[id] = [name, v.position || (v.fantasy_positions||[])[0] || "", v.team || "", v.injury_status || ""];
+    p[id] = [name, v.position || (v.fantasy_positions||[])[0] || "", v.team || "", v.injury_status || "", v.years_exp ?? null];
   }
-  store.set("wwg_players_v2", JSON.stringify({t:Date.now(), p}));
+  store.set("wwg_players_v3", JSON.stringify({t:Date.now(), p}));
   return p;
 }
 function projKey(league){
@@ -323,7 +354,7 @@ async function fetchLeagueRaw(id, week, status){
   }));
   status("Pulling projections and the injury report…");
   const key = projKey(league), proj = {};
-  await Promise.all([week, week-1].filter(w=>w>=1).map(async w => { try { proj[w] = await loadProjections(league.season, w, key); } catch(e){} }));
+  await Promise.all([week, week-1, week+1].filter(w=>w>=1 && w<=18).map(async w => { try { proj[w] = await loadProjections(league.season, w, key); } catch(e){} }));
   const players = await loadPlayers().catch(()=>({}));
   return {league, users: users||[], rosters: rosters||[], weeks, txnsByWeek, proj, players};
 }
@@ -349,7 +380,7 @@ function buildModel(raw, week, opts = {}){
   const notBench = Object.fromEntries(rosters.map(r=>[r.roster_id, new Set([...(r.taxi||[]), ...(r.reserve||[])])]));
   const P = id => {
     const p = players[id];
-    if (p) return {name:p[0], pos:p[1], nfl:p[2], inj:p[3] || ""};
+    if (p) return {name:p[0], pos:p[1], nfl:p[2], inj:p[3] || "", exp:p[4] ?? null};
     const isDef = /^[A-Z]{2,3}$/.test(id);
     return {name: isDef ? `${id} D/ST` : `Player ${id}`, pos: isDef ? "DEF" : "", nfl: isDef ? id : "", inj:""};
   };
@@ -613,6 +644,139 @@ function buildModel(raw, week, opts = {}){
   const nextOpp = {};
   for (const g of pairs(week+1)) { nextOpp[g.a.roster_id] = teams[g.b.roster_id]; nextOpp[g.b.roster_id] = teams[g.a.roster_id]; }
 
+  // ---- Horoscopes: a unique sign per team (from how they manage) + one prophecy each (half real, half chaos) ----
+  const horo = (() => {
+    const sideOf = Object.fromEntries(sides.map(S=>[String(S.rid), S]));
+    const nextProj = (raw.proj || {})[week+1] || null;
+    const byeTeams = new Set();
+    if (nextProj) {
+      const playing = new Set(Object.keys(nextProj).map(id=>(players[id]||[])[2]).filter(Boolean));
+      if (playing.size >= 20) for (const t of new Set(Object.values(players).map(p=>p[2]).filter(Boolean))) if (!playing.has(t)) byeTeams.add(t);
+    }
+    // season activity per team
+    const act = {}; for (const rid of rids) act[rid] = {pickups:0, trades:0, faab:0};
+    for (let w=1; w<=week; w++) for (const t of (txnsByWeek[w]||[])) {
+      if (t.status !== "complete") continue;
+      const who = new Set(Object.values(t.adds||{}).map(String));
+      for (const rid of who) { if (!act[rid]) continue; if (t.type==="trade") act[rid].trades++; else { act[rid].pickups++; act[rid].faab += +(t.settings && t.settings.waiver_bid) || 0; } }
+    }
+    // starts per player per team, and each player's recent scores
+    const starts = {}, hist = {};
+    for (let w=1; w<=week; w++) for (const m of (weeks[w]||[])) {
+      const rid = String(m.roster_id); starts[rid] = starts[rid] || {};
+      for (const id of (m.starters||[])) if (id && id !== "0") starts[rid][id] = (starts[rid][id]||0) + 1;
+      for (const [id,pt] of Object.entries(m.players_points||{})) (hist[id] = hist[id] || {})[w] = +pt;
+    }
+    const played = rids.filter(r=>scores[r] && Object.keys(scores[r]).length);
+    if (played.length < 2) return null;
+    const stats = rids.map(rid => {
+      const sc = Object.values(scores[rid]||{}); const mean = sc.reduce((a,b)=>a+b,0)/(sc.length||1);
+      const sd = Math.sqrt(sc.reduce((a,b)=>a+(b-mean)**2,0)/(sc.length||1));
+      const t = TI.find(x=>String(x.rid)===String(rid)) || {};
+      const S = sideOf[rid];
+      const nflCount = {}; if (S) for (const p of S.starters) if (p.nfl && p.pos!=="DEF") nflCount[p.nfl] = (nflCount[p.nfl]||0)+1;
+      const stack = Object.entries(nflCount).sort((a,b)=>b[1]-a[1])[0] || ["",0];
+      const unluckyLosses = (weeks ? Array.from({length:week},(_,i)=>i+1) : []).filter(w=>{ const ws = sides.length && (weeks[w]||[]).filter(m=>m.matchup_id!=null).map(m=>+m.points||0); if (!ws || !ws.length) return false;
+        const mine = (weeks[w]||[]).find(m=>String(m.roster_id)===String(rid)); if (!mine) return false;
+        const opp = (weeks[w]||[]).find(m=>m.matchup_id===mine.matchup_id && m!==mine); if (!opp || +mine.points >= +opp.points) return false;
+        const sorted = [...ws].sort((a,b)=>a-b); return +mine.points > sorted[Math.floor(sorted.length/2)]; }).length;
+      return {rid:String(rid), team:teams[rid].team, mgr:teams[rid].mgr, rec:rec[rid], rank:rankAfter[rid], pf:rec[rid].pf, mean, sd, lo:Math.min(...sc), hi:Math.max(...sc), n:sc.length,
+        bench:t.bench||0, luck:t.luck||0, streak:streakOf(rec[rid].res), stackTeam:stack[0], stackN:stack[1], unluckyLosses, ...act[rid]};
+    });
+    const N = stats.length;
+    const pct = (arr, v) => arr.filter(x=>x < v).length / Math.max(1, arr.length-1);
+    const col = k => stats.map(s=>s[k]);
+    const SIGNS = [
+      {k:"tinkerer", g:"♓", name:"The Tinkerer", fit:s=>bestBall?-1:pct(col("bench"),s.bench), why:s=>`${f2(s.bench)} pts left on the bench this season`},
+      {k:"snakebitten", g:"♋", name:"The Snakebitten", fit:s=>s.unluckyLosses ? 0.5+0.2*s.unluckyLosses : pct(col("luck").map(x=>-x),-s.luck)*0.8, why:s=>s.unluckyLosses ? `${s.unluckyLosses} loss${s.unluckyLosses>1?"es":""} while outscoring most of the league` : `${Math.abs(s.luck).toFixed(1)} fewer wins than the points deserve`},
+      {k:"frontrunner", g:"♌", name:"The Front-Runner", fit:s=>s.rank===1 ? 1.1 : 1-(s.rank-1)/N*1.6, why:s=>`${ord(s.rank)} in the standings, ${recStr(s.rec)}`},
+      {k:"hawk", g:"♒", name:"The Waiver Hawk", fit:s=>s.pickups ? pct(col("pickups"),s.pickups)+0.05*s.pickups : -1, why:s=>`${s.pickups} pickup${s.pickups!==1?"s":""} in ${week} week${week>1?"s":""}`},
+      {k:"boom", g:"♈", name:"The Boom-or-Bust", fit:s=>s.n>=2 ? pct(col("sd"),s.sd) : -1, why:s=>`scores ranging from ${Math.round(s.lo)} to ${Math.round(s.hi)}`},
+      {k:"metronome", g:"♉", name:"The Metronome", fit:s=>s.n>=3 ? pct(col("sd").map(x=>-x),-s.sd) : -1, why:s=>`every score between ${Math.round(s.lo)} and ${Math.round(s.hi)}`},
+      {k:"dealmaker", g:"♊", name:"The Dealmaker", fit:s=>s.trades ? 0.6+0.2*s.trades : -1, why:s=>`${s.trades} trade${s.trades>1?"s":""} this season`},
+      {k:"setforget", g:"♑", name:"The Set-and-Forget", fit:s=>(s.pickups+s.trades)===0 ? 0.7 : pct(col("pickups").map(x=>-x),-s.pickups)*0.6, why:s=>(s.pickups+s.trades)===0 ? `zero roster moves all season` : `just ${s.pickups+s.trades} roster move${s.pickups+s.trades>1?"s":""} all season`},
+      {k:"homer", g:"⚑", name:"The Homer", fit:s=>s.stackN>=3 ? 0.55+0.15*s.stackN : -1, why:s=>`${s.stackN} starters from the ${nflName(s.stackTeam)}`},
+      {k:"gambler", g:"♐", name:"The Gambler", fit:s=>s.faab>0 ? pct(col("faab"),s.faab)+0.1 : -1, why:s=>`$${s.faab} of FAAB spent`},
+      {k:"charm", g:"♎", name:"The Lucky Charm", fit:s=>s.luck>0.5 ? 0.4+0.25*s.luck : -1, why:s=>`${s.luck.toFixed(1)} more wins than the points deserve`},
+      {k:"cellar", g:"♏", name:"The Cellar Dweller", fit:s=>s.rank===N ? 0.95 : -1, why:s=>`last place, ${recStr(s.rec)}`},
+      {k:"juggernaut", g:"☄", name:"The Juggernaut", fit:s=>pct(col("pf"),s.pf)*0.9, why:s=>`${f2(s.pf)} points scored, ${ord(stats.filter(o=>o.pf>s.pf).length+1)} in the league`},
+      {k:"wildcard", g:"✶", name:"The Wildcard", fit:s=>0.05, why:s=>`the stars are still reading you`, generic:true},
+      {k:"enigma", g:"☾", name:"The Enigma", fit:s=>0.04, why:s=>`${recStr(s.rec)}, and nobody knows what it means`, generic:true},
+      {k:"darkhorse", g:"♞", name:"The Dark Horse", fit:s=>0.03, why:s=>`${ord(s.rank)} and flying under the radar`, generic:true},
+      {k:"latebloomer", g:"❀", name:"The Late Bloomer", fit:s=>0.02, why:s=>`still waiting for the season to start`, generic:true},
+      {k:"bystander", g:"☁", name:"The Innocent Bystander", fit:s=>0.01, why:s=>`present, accounted for, unremarkable`, generic:true},
+      {k:"understudy", g:"✧", name:"The Understudy", fit:s=>0.005, why:s=>`waiting for a bigger role`, generic:true},
+      {k:"streaker", g:"♍", name:"The Streaker", fit:s=>s.streak.n>=3 ? 0.45+0.1*s.streak.n : -1, why:s=>`${s.streak.n} straight ${s.streak.k==="W"?"wins":"losses"}`},
+    ];
+    // greedy unique assignment: best team-sign fits first
+    const pairsTS = []; for (const s of stats) for (const z of SIGNS) { const f = z.fit(s); if (f > -0.5) pairsTS.push({s, z, f}); }
+    pairsTS.sort((a,b)=>b.f-a.f || a.z.k.localeCompare(b.z.k));
+    const signOf = {}, usedSign = new Set();
+    for (const p of pairsTS) if (!signOf[p.s.rid] && !usedSign.has(p.z.k)) { signOf[p.s.rid] = p.z; usedSign.add(p.z.k); }
+    for (const s of stats) if (!signOf[s.rid]) {
+      const z = SIGNS.find(z=>!usedSign.has(z.k) && z.fit(s) > -0.5) || SIGNS.find(z=>!usedSign.has(z.k) && z.generic) || SIGNS.find(z=>!usedSign.has(z.k) && !(bestBall && z.k==="tinkerer")) || SIGNS[SIGNS.length-1];
+      signOf[s.rid] = z; usedSign.add(z.k);
+    }
+
+    // prophecy candidates
+    const nextPj = id => nextProj ? (nextProj[id] ?? null) : null;
+    const canPlay = p => !INJURED.has(p.inj) && !byeTeams.has(p.nfl) && (nextProj ? (nextPj(p.id)||0) > 0.5 : true);
+    const omens = {};
+    for (const s of stats) {
+      const S = sideOf[s.rid]; if (!S) { omens[s.rid] = []; continue; }
+      const C = [], opp = nextOpp[s.rid];
+      const real = (k, score, d) => C.push({k, real:true, score, d}), chaos = (k, score, d) => C.push({k, real:false, score, d});
+      const doomed = S.starters.filter(p=>byeTeams.has(p.nfl) || INJURED.has(p.inj));
+      if (doomed.length) real("doom", 80 + 5*doomed.length, {ps:doomed.slice(0,2)});
+      if (opp) { const rev = S.starters.find(p=>formerOwners[p.id] && formerOwners[p.id][opp.rid]); if (rev) real("revenge", 75, {p:rev, opp, how:formerOwners[rev.id][opp.rid]}); }
+      const cold = S.starters.find(p=>{ const h = hist[p.id]||{}; const a = h[week-2], b = h[week-1], c = h[week]; return a!=null && b!=null && c!=null && a > b && b > c && c < a*0.6 && a >= 8; });
+      if (cold) real("badomen", 65, {p:cold});
+      if (!bestBall) { const hotb = [...S.bench].filter(p=>p.pts >= 14).sort((a,b)=>b.pts-a.pts)[0]; if (hotb) real("hotbench", 55 + hotb.pts/3, {p:hotb}); }
+      if (s.stackN >= 3) real("stack", 50 + 5*s.stackN, {team:s.stackTeam, n:s.stackN});
+      if (opp && nextProj) {
+        const mine = S.starters.reduce((a,p)=>a+(nextPj(p.id)||0),0);
+        const os = sideOf[String(opp.rid)]; const theirs = os ? os.starters.reduce((a,p)=>a+(nextPj(p.id)||0),0) : 0;
+        if (theirs - mine >= 10) real("climb", 45, {opp, gap:theirs-mine});
+        else if (mine - theirs >= 10) real("trap", 40, {opp, gap:mine-theirs});
+      }
+      if (!bestBall) {
+        const giants = S.bench.filter(p=>!["K","DEF"].includes(p.pos) && !(starts[s.rid]||{})[p.id] && canPlay(p)).sort((a,b)=>((b.exp===0)-(a.exp===0)) || (b.pts-a.pts));
+        if (giants[0]) chaos("giant", 70 + (giants[0].exp===0 ? 10 : 0), {p:giants[0], proj:nextPj(giants[0].id)});
+      }
+      const flop = S.starters.filter(p=>p.proj!=null && p.proj >= 8 && p.pts < p.proj*0.5 && canPlay(p)).sort((a,b)=>(b.proj-b.pts)-(a.proj-a.pts))[0];
+      if (flop) chaos("redemption", 65, {p:flop});
+      const star = [...S.starters].filter(p=>!["K","DEF"].includes(p.pos) && canPlay(p)).sort((a,b)=>(nextPj(b.id)??b.pts)-(nextPj(a.id)??a.pts))[0];
+      if (star) chaos("reverse", 50, {p:star});
+      const spark = S.bench.filter(p=>!["K","DEF"].includes(p.pos) && canPlay(p)).sort((a,b)=>a.id.localeCompare(b.id))[hash(s.rid+":"+week) % Math.max(1,S.bench.length)] || null;
+      if (spark && !bestBall) chaos("spark", 35, {p:spark});
+      const cheerK = S.starters.find(p=>p.pos==="K" && canPlay(p));
+      if (cheerK) chaos("kicker", 25, {p:cheerK});
+      const dst = S.starters.find(p=>p.pos==="DEF" && canPlay(p));
+      if (dst) chaos("defense", 22, {p:dst});
+      const flexer = S.starters.find(p=>/FLEX/.test(p.slot) && canPlay(p));
+      if (flexer && !bestBall) chaos("flex", 20, {p:flexer});
+      chaos("wire", 10, {});
+      chaos("vibes", 5, {});
+      omens[s.rid] = C.sort((a,b)=>b.score-a.score);
+    }
+    // assign one omen per team: unique omen types where possible, half real / half chaos
+    const out = [], usedOmen = new Set(); let nReal = 0, nChaos = 0;
+    const order = [...stats].sort((a,b)=>(omens[b.rid][0]||{score:0}).score - (omens[a.rid][0]||{score:0}).score);
+    const useCount = {};
+    const room = o => (useCount[o.k]||0) < ((typeof HORO_OMEN !== "undefined" && HORO_OMEN[o.k]) ? HORO_OMEN[o.k].length : 1);
+    for (const s of order) {
+      const C = omens[s.rid] || [];
+      const wantReal = nReal <= nChaos;
+      const pref = C.filter(o=>o.real===wantReal), other = C.filter(o=>o.real!==wantReal);
+      const o = pref.find(o=>!usedOmen.has(o.k)) || pref.find(room) || other.find(o=>!usedOmen.has(o.k)) || other.find(room) || null;
+      if (o) { usedOmen.add(o.k); useCount[o.k] = (useCount[o.k]||0) + 1; if (o.real) nReal++; else nChaos++; }
+      out.push({...s, sign:signOf[s.rid], omen:o, opp:nextOpp[s.rid] || null});
+    }
+    const firstIdx = rid => stats.findIndex(x=>x.rid===rid);
+    out.sort((a,b)=>firstIdx(a.rid)-firstIdx(b.rid));
+    return {forWeek: week+1, list: out};
+  })();
+
   // Awards
   const starters = sides.flatMap(S=>S.starters.map(p=>({...p, team:S.team})));
   const pow = starters.reduce((a,b)=>!a||b.pts>a.pts?b:a, null);
@@ -645,7 +809,7 @@ function buildModel(raw, week, opts = {}){
     leagueId: league.league_id, leagueName: league.name || "Fantasy League", season: league.season, week, po,
     playoffs: !!(po && week >= po), hasProj: !!proj, prevLead,
     medianOn, median: weekMedian ? weekMedian.med : null, games, played, n, numTeams,
-    awards:{pow, beat, bust:bustA, dud, blund, unlucky, lucky, top}, take, standings, power, playoffLine, wire, nextOpp
+    awards:{pow, beat, bust:bustA, dud, blund, unlucky, lucky, top}, take, standings, power, playoffLine, wire, nextOpp, horo
   };
 }
 
@@ -1012,6 +1176,142 @@ function writeColumn(M, r){
   return {headline, body, pundit: PUNDIT};
 }
 
+
+/* ---------------- Horoscopes (Madame Waivera) ---------------- */
+const NFL_NAMES = {ARI:"Cardinals",ATL:"Falcons",BAL:"Ravens",BUF:"Bills",CAR:"Panthers",CHI:"Bears",CIN:"Bengals",CLE:"Browns",DAL:"Cowboys",DEN:"Broncos",DET:"Lions",GB:"Packers",HOU:"Texans",IND:"Colts",JAX:"Jaguars",KC:"Chiefs",LV:"Raiders",LAC:"Chargers",LAR:"Rams",MIA:"Dolphins",MIN:"Vikings",NE:"Patriots",NO:"Saints",NYG:"Giants",NYJ:"Jets",PHI:"Eagles",PIT:"Steelers",SF:"49ers",SEA:"Seahawks",TB:"Buccaneers",TEN:"Titans",WAS:"Commanders"};
+const nflName = t => NFL_NAMES[t] || t;
+
+const HORO_JAB = {
+  tinkerer: [s=>`You have left ${f2(s.bench)} points on your bench this season. The stars have started keeping a spreadsheet.`,
+             s=>`${f2(s.bench)} bench points and counting. The universe watches you set your lineup and quietly winces.`,
+             s=>`Every Sunday you outthink yourself. The stars counted ${f2(s.bench)} points of evidence.`],
+  snakebitten: [s=>`The cosmos owes you. It is notoriously slow to pay, and your ${recStr(s.rec)} record knows it.`,
+                s=>`You keep scoring enough to beat almost everyone except the one team you play. The stars call this a curse. So does your group chat.`,
+                s=>`Saturn has placed your schedule in retrograde. There is no other explanation. The stars looked.`],
+  frontrunner: [s=>`${recStr(s.rec)} and insufferable about it. Venus notes you have started calling your team “we.”`,
+                s=>`First place suits you. The stars would like to remind you that so did the Titanic, briefly.`,
+                s=>`You sit atop the standings, and the whole league is quietly rooting against you. The stars respect the villain arc.`],
+  hawk: [s=>`${s.pickups} pickups. You treat the waiver wire like a slot machine. Jupiter would like a word. You will not listen to Jupiter.`,
+         s=>`The stars have seen you refresh the waiver wire at 3 a.m. They are not judging. They are a little worried.`],
+  boom: [s=>`${Math.round(s.lo)} one week, ${Math.round(s.hi)} another. The planets cannot predict you and have stopped trying.`,
+         s=>`You are either the best team in the league or the worst, depending on the day. The stars have learned not to ask which.`],
+  metronome: [s=>`Every week, somewhere between ${Math.round(s.lo)} and ${Math.round(s.hi)}. The stars find you comforting and a little beige.`,
+              s=>`You are the most predictable team in the league. The stars could set a watch by you. They have.`],
+  dealmaker: [s=>`${s.trades} trade${s.trades>1?"s":""} already. Mercury is permanently lodged in your trade block.`,
+              s=>`You would trade your starting lineup for a firm handshake. The stars have seen your trade history and are concerned.`],
+  setforget: [s=>`${s.pickups+s.trades===0?"Zero":"Barely any"} roster moves. The stars checked on you. You are alive, just asleep.`,
+              s=>`Your roster has not changed since the draft party. The stars admire the commitment and question the strategy.`],
+  homer: [s=>`${s.stackN} starters from the ${nflName(s.stackTeam)}. The stars admire your loyalty and question literally everything else about it.`,
+          s=>`You are not managing a fantasy team. You are running a ${nflName(s.stackTeam)} fan club with a scoreboard.`],
+  gambler: [s=>`$${s.faab} of FAAB, gone. The stars see a high roller, and they see the bill.`,
+            s=>`You bid on waivers like you're at an estate sale. $${s.faab} so far. The stars suggest a budget.`],
+  charm: [s=>`You have won ${s.luck.toFixed(1)} more games than your points deserve. The stars see no skill here, only a horseshoe.`,
+          s=>`Your record is ${recStr(s.rec)}. Your points say otherwise. The stars suggest you do not look down.`],
+  cellar: [s=>`Last place. The stars have seen the standings and are sending thoughts and prayers.`,
+           s=>`${recStr(s.rec)}. The only way is up. The stars double-checked: it really is the only way.`],
+  juggernaut: [s=>`${f2(s.pf)} points scored. The stars feel the ground shake every Sunday.`,
+               s=>`Nobody scores like you. The stars have filed a noise complaint.`],
+  streaker: [s=>s.streak.k==="W" ? `${s.streak.n} straight wins. The stars have stopped betting against you. For now.` : `${s.streak.n} straight losses. The stars are not laughing. Mostly.`,
+             s=>s.streak.k==="W" ? `You have won ${s.streak.n} in a row, and the stars can feel the league getting nervous.` : `${s.streak.n} losses in a row. The stars see a pattern. You should too.`],
+};
+Object.assign(HORO_JAB, {
+  wildcard: [s=>`The stars have studied your team for weeks and remain genuinely baffled. That is either a compliment or a warning.`],
+  enigma: [s=>`${recStr(s.rec)}. The stars have looked at it from every angle and still cannot tell if you are good.`],
+  darkhorse: [s=>`Nobody is talking about you. The stars suspect you prefer it that way.`],
+  latebloomer: [s=>`The stars sense your best football is ahead of you. Mostly because it could hardly be behind you.`],
+  bystander: [s=>`You are neither hero nor villain this season. The stars have filed you under “miscellaneous.”`],
+  understudy: [s=>`You have been waiting in the wings all season. The stars hear a cue coming.`],
+});
+const HORO_QUIET = [
+  "Your season is over. The stars see golf, yard work and a very quiet Sunday.",
+  "The stars have moved on to next season. They suggest you do the same.",
+  "Nothing to play for. The stars recommend spite. Draft revenge fantasies accordingly.",
+  "The heavens are dark for you until the draft. Rest. Reflect. Mock draft.",
+  "You are eliminated, but the stars see a thrilling future as a spoiler. Root chaotically.",
+  "The stars are quiet this week. Suspiciously quiet.",
+  "No games, no pressure, no prophecy. The stars are on vacation, and so are you.",
+];
+const HORO_OMEN = {
+  doom: [d=>`${d.ps.map(pname).join(" and ")} will not be joining you this week. The stars checked. Twice.`,
+         d=>`The heavens report that ${d.ps.map(pname).join(" and ")} ${d.ps.length>1?"are":"is"} unavailable this week. Plan accordingly, or suffer poetically.`,
+          d=>`Bad news from the heavens: ${d.ps.map(pname).join(" and ")} ${d.ps.length>1?"are":"is"} out of commission this week. The stars recommend a backup plan.`,
+          d=>`The stars have marked ${d.ps.map(pname).join(" and ")} absent. No note from home. Adjust your lineup.`],
+  revenge: [d=>`A former ally seeks vengeance. ${Pname(d.p)} was ${d.how==="trade"?"traded away":"cut"} by ${d.opp.team}. This week he faces them. The stars have bought popcorn.`,
+            d=>`${Pname(d.p)} remembers ${d.opp.team}. The stars remember too. Start him and watch.`],
+  badomen: [d=>`A shadow falls over ${pname(d.p)}. Three straight weeks of decline. The stars suggest watching him closely. Or not at all.`,
+            d=>`The stars see ${pname(d.p)}'s numbers sinking like a stone. Whether you throw him a rope is your business.`,
+          d=>`${Pname(d.p)} has faded three weeks in a row. The stars see the pattern. The question is whether you do.`],
+  hotbench: [d=>`${Pname(d.p)} just scored ${f2(d.p.pts)} on your bench. The stars do not believe in coincidences. The stars believe in Sunday.`,
+             d=>`${f2(d.p.pts)} points from your bench, courtesy of ${pname(d.p)}. The stars saw it. So did everyone else.`,
+          d=>`The stars noticed ${pname(d.p)} put up ${f2(d.p.pts)} while riding your pine. They are not saying anything. They are just noticing.`],
+  stack: [d=>`Mars aligns with the ${nflName(d.team)}. Your whole lineup rises or falls with them this week. As it was written. As you chose.`,
+          d=>`${d.n} of your starters share one NFL sideline. The stars see either glory or a group funeral.`,
+          d=>`The stars see your fate tied to one NFL team, the ${nflName(d.team)}. Pray for their offensive line.`],
+  climb: [d=>`The stars see a steep climb: ${d.opp.team} is projected ${f2(d.gap)} points higher. Pack water.`,
+          d=>`${d.opp.team} looms ${f2(d.gap)} projected points above you. The stars suggest a miracle. Any miracle.`,
+          d=>`Uphill both ways: ${d.opp.team} projects ${f2(d.gap)} points better. The stars have seen stranger comebacks. Not many.`],
+  trap: [d=>`Venus warns of a trap game. You are projected ${f2(d.gap)} points better than ${d.opp.team}. That is exactly what they want you to think.`,
+         d=>`The stars favor you by ${f2(d.gap)} over ${d.opp.team}. The stars have also been wrong before, spectacularly.`,
+          d=>`You are the favorite against ${d.opp.team} by ${f2(d.gap)}. The stars remind you that favorites lose every single week somewhere.`],
+  giant: [d=>`A young star stirs on your bench. ${Pname(d.p)} has not started for you all season.${d.proj!=null?` The projections give him ${f2(d.proj)}.`:""} The projections have never looked up at the night sky.`,
+          d=>`The stars keep whispering one name: ${pname(d.p)}. He has not seen your lineup all year. The stars think it is time.`,
+          d=>`Destiny sits on your bench in the form of ${pname(d.p)}. The projections are not invited to this conversation.`],
+  redemption: [d=>`${Pname(d.p)} gave you ${f2(d.p.pts)} on a projection of ${f2(d.p.proj)}. The stars have not given up on him. Neither should you. Probably.`,
+               d=>`The heavens forgive ${pname(d.p)} for last week. The heavens suggest you do the same.`,
+          d=>`Every hero gets a second act. The stars have cast ${pname(d.p)} in yours.`],
+  reverse: [d=>`Everyone says start ${pname(d.p)}. The stars are not so sure. Something about his moon is off this week.`,
+            d=>`The stars have a strange feeling about ${pname(d.p)} this week. They will not say more. They cannot.`,
+          d=>`${Pname(d.p)} is your safest start. The stars have never trusted anything safe.`],
+  spark: [d=>`The stars see a spark around ${pname(d.p)}. Faint, but there. Do with that what you will.`,
+          d=>`${Pname(d.p)}'s aura is unusually bright this week. The stars are only the messenger.`,
+          d=>`The stars keep glancing at ${pname(d.p)}. So should you. Just a glance.`],
+  kicker: [d=>`The stars have chosen ${pname(d.p)} as your hero this week. Yes, the kicker. The stars have a sense of humor.`,
+           d=>`Your fate rests on the right leg of ${pname(d.p)}. The stars apologize.`,
+           d=>`A 50-yarder is written in your stars. ${Pname(d.p)} has been informed.`],
+  defense: [d=>`The stars favor defense this week. ${Pname(d.p)} will be the talk of the group chat, one way or another.`,
+            d=>`Pick-sixes are in your stars. The stars did not say whose. ${Pname(d.p)} is on notice.`],
+  flex: [d=>`Your FLEX spot hums with strange energy. ${Pname(d.p)} knows something. The stars won't say what.`,
+         d=>`The stars have reviewed your FLEX and have questions about ${pname(d.p)}. Several questions.`],
+  wire: [d=>`The answer to your problems is on the waiver wire. It is not the player you are thinking of. It never is.`,
+         d=>`The stars see a pickup in your future. They suggest the second name you think of, never the first.`],
+  vibes: [d=>`The stars have no specific notes. Only a feeling. The feeling is: start your gut, not your spreadsheet.`,
+          d=>`A great week is possible. So is the opposite. The stars have covered every outcome and cannot be wrong.`],
+};
+const HORO_LUCK = {
+  tinkerer:["Lucky player: the one you forgot you drafted.","Lucky move: doing nothing. Try it once."],
+  snakebitten:["Compatibility: low. With the schedule-maker especially.","Lucky charm: none. It is not your year. Yet."],
+  frontrunner:["Lucky number: 0, the number of people rooting for you.","Lucky phrase: “any given Sunday.” Learn to fear it."],
+  hawk:["Lucky day: Wednesday, 3 a.m. You know why.","Lucky move: one fewer waiver claim. Just one."],
+  boom:["Lucky color: whatever your team wears when it wins.","Lucky number: somewhere between 60 and the moon."],
+  metronome:["Lucky number: your average. Obviously.","Lucky feeling: mild contentment. You will get exactly that."],
+  dealmaker:["Avoid: the trade button. Seek: a hobby.","Lucky trade: the one you do not make."],
+  setforget:["Lucky move: literally any move.","Lucky app: Sleeper. Open it sometime."],
+  homer:["Lucky jersey: you already know which one.","Lucky Sunday: whenever your team is not on bye."],
+  gambler:["Lucky bid: $1. Try it.","Lucky number: your remaining FAAB. Guard it."],
+  charm:["Lucky number: all of them, apparently.","Avoid: looking at your points-against."],
+  cellar:["Lucky number: 1, as in first overall pick.","Lucky direction: up. There is no other."],
+  juggernaut:["Lucky number: whatever you want it to be.","Lucky opponent: all of them, apparently."],
+  streaker:["Lucky day: next Sunday. Or not. The stars are not a sportsbook.","Lucky phrase: “one week at a time.”"],
+};
+Object.assign(HORO_LUCK, {
+  wildcard:["Lucky number: roll a die."], enigma:["Lucky shape: a question mark."], darkhorse:["Lucky animal: take a guess."],
+  latebloomer:["Lucky season: next one. Or this one. Unclear."], bystander:["Lucky outcome: a tie. Nobody wins, nobody cries."], understudy:["Lucky moment: any minute now."],
+});
+function writeHoroscopes(M, variant){
+  if (!M.horo || !M.horo.list || !M.horo.list.length) return null;
+  const used = new Set();
+  const choose = (arr, seed) => { const n = arr.length; const start = hash(seed) % n; for (let i=0;i<n;i++) { const c = arr[(start+i)%n]; if (!used.has(c)) { used.add(c); return c; } } return arr[start]; };
+  const V = variant ? ":v"+variant : "";
+  const items = M.horo.list.map(s => {
+    const z = s.sign, seed = `${M.leagueId}:${M.week}:${s.rid}${V}`;
+    const jab = choose(HORO_JAB[z.k] || HORO_JAB.metronome, seed+":j")(s);
+    const pro = s.omen ? choose(HORO_OMEN[s.omen.k], seed+":o")(s.omen.d) : choose(HORO_QUIET, seed+":q");
+    const luck = choose(HORO_LUCK[z.k] || HORO_LUCK.metronome, seed+":l");
+    return {g:z.g, sign:z.name, why:z.why(s), team:s.team, jab, pro, luck, real: s.omen ? (s.omen.real ? 'r' : 'c') : 'q'};
+  });
+  return {forWeek: M.horo.forWeek, items};
+}
+
 function writeEdition(M, variant = 0){
   const V = variant ? ":v" + variant : "";
   const r = rng(hash(M.leagueId + ":" + M.week + V));
@@ -1020,7 +1320,7 @@ function writeEdition(M, variant = 0){
   const ed = {used:new Set(), slot:0, base:hash(M.leagueId + V), step:Math.max(7, M.games.length*2+1)};
   const order = [lead, ...M.games.filter(g=>g!==lead)].filter(Boolean);
   for (const g of order) stories[g.id] = writeGame(g, M, rng(hash(M.leagueId+":"+M.week+":"+g.id+V)), g===lead, ed);
-  return {leadId: lead ? lead.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), ai:false};
+  return {leadId: lead ? lead.id : null, stories, column: writeColumn(M, r), byline: pick(r, STAFF), horo: writeHoroscopes(M, variant), ai:false};
 }
 
 /* ---------------- Render ---------------- */
@@ -1108,7 +1408,14 @@ function render(){
     ${M.power.map((s,i)=>`<div class="pp"><span class="n">${i+1}</span><span class="t">${esc(s.team)}</span><span class="r">${recStr(s)} · ${f2(s.pf)}</span><span class="q">${quip(i,M.power.length)} Week ${M.week}: ${f2(s.wk)}.</span></div>`).join("")}
   </div>`;
 
-  paper.innerHTML = banner + flag + ticker + `<div class="front">${leadHtml}${rail}</div>` + games +
+
+  const H = E.horo;
+  const hsItem = h => `<div class="hs" data-o="${h.real}"><div class="g" aria-hidden="true">${h.g}&#xFE0E;</div><div class="sg">${esc(h.sign)}<span>${esc(h.why)}</span></div><div class="tm">${esc(h.team)}</div><div class="tx">${esc(h.jab)}</div><div class="tx pr"><b>Prophecy</b>${esc(h.pro)}</div><div class="lk">${esc(h.luck)}</div></div>`;
+  const horoHtml = H ? `<section class="section"><h2 class="sec-h">Horoscopes <small>FOR WEEK ${H.forWeek}</small></h2>
+    <div class="horo-hd"><div class="t">The Stars</div><div class="by"><b>As read by Madame Waivera</b>Your sign is set by how you manage, not when you were born. The stars have been watching your roster moves.</div></div>
+    <div class="horo">${H.items.map(hsItem).join("")}</div>
+    <p class="horo-foot">Signs update weekly. If yours changed, the stars noticed something. Madame Waivera is not a licensed astrologer, fantasy analyst, or waiver priority. Start your players at your own risk.</p></section>` : "";
+  paper.innerHTML = banner + flag + ticker + `<div class="front">${leadHtml}${rail}</div>` + games + horoHtml +
     `<section class="section split">${wireHtml}${powerHtml}</section>` +
     `<footer class="foot"><span>The Waiver Wire Gazette · independent fan project using Sleeper's public data · not affiliated with Sleeper</span><span>Quotes are satire. Box scores are not.</span></footer>`;
 }
@@ -1147,7 +1454,8 @@ function npHTML(M, E){
   const lg = M.games.find(g=>g.id===E.leadId), ls = E.stories[E.leadId];
   const others = M.games.filter(g=>g.id!==E.leadId).sort((a,b)=>b.priority-a.priority);
   const chunks = []; for (let i=0;i<others.length;i+=4) chunks.push(others.slice(i,i+4));
-  const lastPage = 2 + chunks.length;
+  const horoPage = E.horo ? 2 + chunks.length : null;
+  const lastPage = 2 + chunks.length + (E.horo ? 1 : 0);
   const run = (pg, section) => `<div class="np-run"><span>${esc(name)}</span><span>${esc(section)}</span><span>Week ${M.week} · Page ${pg}</span></div>`;
   const A = M.awards, aw = [];
   const award = (lbl, who, why) => aw.push(`<div class="np-aw"><div class="np-lbl">${lbl}</div><div class="np-who">${esc(who)}</div><div class="np-why">${esc(why)}</div></div>`);
@@ -1188,7 +1496,7 @@ function npHTML(M, E){
         <div class="np-sec">Standings${M.medianOn?" <small>incl. median</small>":""}</div>${standings}
       </div>
     </div>
-    <div class="np-inside">Inside: ${chunks.length?`Around the League, p. 2${chunks.length>1?"–"+(1+chunks.length):""} · `:""}The Hot Take, Power Poll &amp; Transaction Wire, p. ${lastPage}</div>
+    <div class="np-inside">Inside: ${chunks.length?`Around the League, p. 2${chunks.length>1?"–"+(1+chunks.length):""} · `:""}${horoPage?`Horoscopes, p. ${horoPage} · `:""}The Hot Take, Power Poll &amp; Transaction Wire, p. ${lastPage}</div>
   </div></div>`;
 
   const gamePages = chunks.map((ch,i)=>`<div class="np-page"><div class="np-in">${run(i+2,"Around the League")}
@@ -1219,7 +1527,12 @@ function npHTML(M, E){
     <div class="np-agate">${M.games.map(g=>`<div class="np-ag"><div class="gh">${esc(g.W.team)} ${f2(g.W.pts)}, ${esc(g.L.team)} ${f2(g.L.pts)}</div>${[g.W,g.L].map(S=>`<div class="tm"><span>${esc(S.team)}</span><span>${f2(S.pts)}</span></div>${S.starters.map(p=>`<div class="pl"><span>${esc(p.slot||p.pos)} ${esc(p.name)}</span><span>${f2(p.pts)}</span></div>`).join("")}`).join("")}</div>`).join("")}</div>
     <div class="np-foot">${esc(name)} · printed by the Waiver Wire Gazette press · quotes are satire, box scores are not · not affiliated with Sleeper</div>
   </div></div>`;
-  return [front, ...gamePages, back];
+  const horoPg = E.horo ? `<div class="np-page"><div class="np-in">${run(horoPage,"Horoscopes · For Week " + E.horo.forWeek)}
+    <div class="np-horo-hd"><div class="t">The Stars</div><div class="by"><b>As read by Madame Waivera</b>Your sign is set by how you manage, not when you were born.</div></div>
+    <div class="np-horo">${E.horo.items.map(h=>`<div class="np-hs"><div class="g">${h.g}&#xFE0E;</div><div class="sg">${esc(h.sign)}<span>${esc(h.why)}</span></div><div class="tm">${esc(h.team)}</div><div class="tx">${esc(h.jab)}</div><div class="tx pr"><b>Prophecy</b>${esc(h.pro)}</div><div class="lk">${esc(h.luck)}</div></div>`).join("")}</div>
+    <div class="np-foot">Madame Waivera is not a licensed astrologer, fantasy analyst, or waiver priority. Start your players at your own risk.</div>
+  </div></div>` : "";
+  return [front, ...gamePages, ...(horoPg ? [horoPg] : []), back];
 }
 
 function npFit(page){
@@ -1438,7 +1751,7 @@ $("#regen").addEventListener("click", () => {
   clearShared();
   const v = (state.variant || 0) + 1;
   if (state.sample || !state.leagueId) { show(state.raw, state.week || 3, true, v); setStatus("Rewritten. Same scores, fresh copy."); return; }
-  try { localStorage.removeItem("wwg_players_v2"); } catch(e){}
+  try { localStorage.removeItem("wwg_players_v3"); } catch(e){}
   loadLeague(state.leagueId, +wkSel.value, v).then(()=>{ if (!$("#status").classList.contains("err")) setStatus(`Refreshed with the latest scores and rewritten. Week ${wkSel.value}.`); });
 });
 $("#share").addEventListener("click", async () => {

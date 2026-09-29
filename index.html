@@ -327,6 +327,9 @@ async function fetchLeagueRaw(id, week, status){
 /* ---------------- Model + story angles ---------------- */
 const INJURED = new Set(["Out","IR","PUP","Doubtful"]);
 function buildModel(raw, week, opts = {}){
+  // What ran last week (memoized per data load, so the whole chain back to Week 1 is consistent)
+  const memo = raw._memo || (Object.defineProperty(raw, "_memo", {value:{}, enumerable:false}), raw._memo);
+  const prevLight = () => memo[week-1] || (memo[week-1] = buildModel(raw, week-1, {light:true}));
   const {league, users, rosters, weeks, players} = raw;
   const txnsByWeek = raw.txnsByWeek || {};
   const proj = (raw.proj || {})[week] || null;
@@ -512,8 +515,75 @@ function buildModel(raw, week, opts = {}){
     g.angles = A;
   }
 
+
+  // ---- Hot take candidates (season-long evidence) ----
+  const rids = Object.keys(teams);
+  const ap = {}, benchSum = {};
+  rids.forEach(r=>{ ap[r]={w:0,l:0}; benchSum[r]=0; });
+  for (let w=1; w<=week; w++) {
+    const ents = (weeks[w]||[]).filter(m=>m.matchup_id!=null && teams[m.roster_id]);
+    if (!ents.some(m=>+m.points>0)) continue;
+    for (const m of ents) {
+      ap[m.roster_id].w += ents.filter(o=>o!==m && +o.points < +m.points).length;
+      ap[m.roster_id].l += ents.filter(o=>o!==m && +o.points > +m.points).length;
+      const d = detail(m); if (d.hb) benchSum[m.roster_id] += d.hb.gain;
+    }
+  }
+  const pfRank = Object.fromEntries([...rids].sort((a,b)=>rec[b].pf-rec[a].pf).map((r,i)=>[r,i+1]));
+  const paRank = Object.fromEntries([...rids].sort((a,b)=>rec[a].pa-rec[b].pa).map((r,i)=>[r,i+1]));
+  const tinfo = rid => { const R0 = rec[rid], gms = R0.res.length, hw = R0.res.filter(x=>x==="W").length, apg = ap[rid].w+ap[rid].l;
+    return {...teams[rid], rec:R0, apw:ap[rid].w, apl:ap[rid].l, pfRank:pfRank[rid], paRank:paRank[rid], rank:rankAfter[rid], luck: apg ? hw - gms*(ap[rid].w/apg) : 0, bench:benchSum[rid], streak:streakOf(R0.res), wk:scores[rid][week]}; };
+  const TI = rids.map(tinfo);
+  const nT = rids.length, cut = Math.min(nT, (league.settings && league.settings.playoff_teams) || Math.min(6, nT));
+  const TK = [];
+  const addT = (k, score, d) => TK.push({k, score, d});
+  if (week >= 3) {
+    const fraud = TI.filter(t=>t.rank <= Math.ceil(nT/2) && t.luck >= 1.2).sort((a,b)=>b.luck-a.luck)[0];
+    if (fraud) addT("fraud", 50 + fraud.luck*14, {t:fraud});
+    const sleeper = TI.filter(t=>t.luck <= -1.2).sort((a,b)=>a.luck-b.luck)[0];
+    if (sleeper) addT("sleeper", 48 + (-sleeper.luck)*14 + (sleeper.rank > cut ? 8 : 0), {t:sleeper});
+    const leader = TI.find(t=>t.rank===1);
+    if (leader && leader.paRank === 1 && leader.pfRank > 1) addT("asterisk", 52, {t:leader});
+    else if (leader && leader.paRank <= 2) addT("asterisk", 40, {t:leader});
+  }
+  const topWk = [...TI].filter(t=>t.wk!=null).sort((a,b)=>b.wk-a.wk)[0];
+  if (topWk && seasonHigh && seasonHigh.week===week && +seasonHigh.rid===+topWk.rid) addT("overreaction", 46, {t:topWk});
+  else if (topWk) addT("overreaction", 22, {t:topWk});
+  const coach = [...TI].sort((a,b)=>b.bench-a.bench)[0];
+  if (coach && coach.bench >= 25 && week >= 2) addT("coaching", 34 + Math.min(26, coach.bench/4), {t:coach});
+  for (let w=1; w<week; w++) for (const t of (txnsByWeek[w]||[])) {
+    if (t.status!=="complete" || t.type!=="trade") continue;
+    const by = {}; for (const [pid,rid] of Object.entries(t.adds||{})) (by[rid]=by[rid]||[]).push(pid);
+    const sd = Object.entries(by); if (sd.length!==2 || !teams[sd[0][0]] || !teams[sd[1][0]]) continue;
+    const tot = sd.map(([rid,pids])=>{ let s=0; for (let x=w+1;x<=week;x++){ const m=(weeks[x]||[]).find(e=>+e.roster_id===+rid); if(!m) continue; (m.starters||[]).forEach((id,i)=>{ if (pids.includes(id)) s += +((m.starters_points && m.starters_points[i]) ?? (m.players_points||{})[id] ?? 0); }); } return {rid, pids, s}; }).sort((a,b)=>b.s-a.s);
+    const gap = tot[0].s - tot[1].s;
+    if (gap >= 12) addT("trade", 52 + Math.min(22, gap/2), {w, win:{...teams[tot[0].rid], s:tot[0].s, players:tot[0].pids.map(P)}, lose:{...teams[tot[1].rid], s:tot[1].s, players:tot[1].pids.map(P)}, gap});
+  }
+  const hot = TI.filter(t=>t.streak.k==="W" && t.streak.n>=4).sort((a,b)=>b.streak.n-a.streak.n)[0];
+  if (hot) addT("forfeit", 34 + 4*hot.streak.n, {t:hot});
+  const cold = TI.filter(t=>t.streak.k==="L" && t.streak.n>=3).sort((a,b)=>b.streak.n-a.streak.n)[0];
+  if (cold) addT("blowup", 32 + 4*cold.streak.n, {t:cold});
+  for (const g of games) {
+    if (g.tie) continue;
+    const k = g.W.starters.find(p=>p.pos==="K");
+    if (k && k.pts > g.margin && k.pts >= 8) addT("kicker", 30 + Math.min(10, k.pts - g.margin), {k, W:g.W, L:g.L, margin:g.margin});
+  }
+  // Evergreen takes so there's always something fresh to yell about
+  const allStarters = games.flatMap(g=>[g.W,g.L].flatMap(S=>S.starters.map(p=>({...p, team:S.team, mgr:S.mgr}))));
+  const star = allStarters.filter(p=>!["K","DEF"].includes(p.pos)).sort((a,b)=>b.pts-a.pts)[0];
+  if (star && star.pts >= 20) addT("goat", 20 + Math.min(12, (star.pts-20)/2), {p:star});
+  const flop = allStarters.filter(p=>p.proj!=null && p.proj>=12 && !["K","DEF"].includes(p.pos)).sort((a,b)=>(b.proj-b.pts)-(a.proj-a.pts))[0];
+  if (flop && flop.proj - flop.pts >= 8) addT("benchhim", 22 + Math.min(12, (flop.proj-flop.pts)/2), {p:flop});
+  if (weekMedian) { const g = games.find(g=>!g.tie && g.L.med==="W"); if (g) addT("median", 24, {L:g.L, W:g.W, med:weekMedian.med}); }
+  const slump = TI.filter(t=>t.rank<=3 && t.wk!=null).sort((a,b)=>a.wk-b.wk)[0];
+  if (slump && sides.length && slump.wk <= [...sides].sort((a,b)=>a.pts-b.pts)[Math.min(2, sides.length-1)].pts) addT("sell", 30, {t:slump});
+  const prevTake = week > 1 ? prevLight().takeKind : null;
+  TK.forEach(t=>{ if (t.k === prevTake) t.score -= 100; });
+  TK.sort((a,b)=>b.score-a.score);
+  const take = TK[0] || null;
+
   // Lead + variety: don't run last week's lead angle again unless it's clearly the best story; no repeated angle types on one page
-  const prevLead = !opts.light && week > 1 ? buildModel(raw, week-1, {light:true}).leadKind : null;
+  const prevLead = week > 1 ? prevLight().leadKind : null;
   const FAM = {true_blunder:"bench", hindsight:"bench", proj_upset:"upset", record_upset:"upset", streak_snap:"streak", skid_over:"streak", streak_extend:"streak", unbeaten_falls:"streak"};
   const fam = k => FAM[k] || k;
   const eff = (g, a) => a.score + g.stakes - (prevLead && fam(a.k) === fam(prevLead) ? 30 : 0);
@@ -528,7 +598,7 @@ function buildModel(raw, week, opts = {}){
     used.add(fam(g.primary.k));
   }
   for (const g of games) g.priority = eff(g, g.primary);
-  if (opts.light) return {leadKind: leadAngle ? leadAngle.k : null};
+  if (opts.light) return {leadKind: leadAngle ? leadAngle.k : null, takeKind: take ? take.k : null};
 
   const nextOpp = {};
   for (const g of pairs(week+1)) { nextOpp[g.a.roster_id] = teams[g.b.roster_id]; nextOpp[g.b.roster_id] = teams[g.a.roster_id]; }
@@ -565,7 +635,7 @@ function buildModel(raw, week, opts = {}){
     leagueId: league.league_id, leagueName: league.name || "Fantasy League", season: league.season, week, po,
     playoffs: !!(po && week >= po), hasProj: !!proj, prevLead,
     medianOn, median: weekMedian ? weekMedian.med : null, games, played, n, numTeams,
-    awards:{pow, beat, bust:bustA, dud, blund, unlucky, lucky, top}, standings, power, playoffLine, wire, nextOpp
+    awards:{pow, beat, bust:bustA, dud, blund, unlucky, lucky, top}, take, standings, power, playoffLine, wire, nextOpp
   };
 }
 
@@ -758,16 +828,84 @@ function writeGame(g, M, r, isLead){
   return {id:g.id, kicker:(M.playoffs ? "Playoffs · " : "") + T.kicker, headline, dek, body, next};
 }
 
+const PUNDIT = "Rex Pemberton III";
 function writeColumn(M, r){
-  const lead = M.power[0], last = M.power[M.power.length-1];
-  if (!lead || !last) return null;
-  return {
-    headline: pick(r,[`Stop pretending ${lead.team} isn't the team to beat`, `Somebody check on ${last.team}`]),
-    body: [
-      `After ${M.week} week${M.week>1?"s":""}, ${lead.team} sits at ${recStr(lead)} with ${f2(lead.pf)} points scored. You can call it luck. The standings don't.`,
-      `Meanwhile, ${last.team} is ${recStr(last)} and has scored ${f2(last.pf)} points. The waiver wire is open every week, @${last.mgr}. We checked.`
-    ]
-  };
+  const tk = M.take;
+  if (!tk) return null;
+  const d = tk.d, t = d.t;
+  const rc = t ? recStr(t.rec) : "";
+  const P2 = (a,b) => pick(r,[a,b]);
+  let headline, body;
+  switch (tk.k) {
+    case "fraud":
+      headline = P2(`Fraud alert: ${t.team} is ${rc} and it's a lie`, `${t.team} is the biggest fraud in this league, and I have the receipts`);
+      body = [`Let me say what nobody else in this league has the guts to say. ${t.team} is a FRAUD. ${rc}? Cute. Play every team every week and ${t.team} is ${t.apw}-${t.apl}. ${ord(t.pfRank)} in points scored. That's not a contender. That's a team that keeps drawing the one opponent having a worse week.`,
+        `${t.team} has won ${t.luck.toFixed(1)} more games than its scoring deserves. Luck runs out, @${t.mgr}. It always does. And when it does, don't come crying to me.`, `I said what I said.`];
+      break;
+    case "sleeper":
+      headline = P2(`${t.team} is the best team nobody wants to admit is good`, `Mark it down: ${t.team} is coming, and you should be scared`);
+      body = [`Everybody's looking at the standings and laughing at ${t.team}. ${rc}. Ha ha. You know what I'm looking at? ${f2(t.rec.pf)} points, ${ord(t.pfRank)} in the league. Play everybody every week and they're ${t.apw}-${t.apl}. This team has lost ${Math.abs(t.luck).toFixed(1)} more games than it deserves.`,
+        `That's not a bad team. That's a bad-luck team, and bad luck doesn't last. ${t.rank > M.playoffLine ? `They're ${ord(t.rank)} right now. They're making the playoffs. Write it down.` : `And they're STILL in a playoff spot. Imagine when the luck turns.`}`, `Don't @ me. Actually, do. I'll be here.`];
+      break;
+    case "asterisk":
+      headline = P2(`Put an asterisk next to ${poss(t.team)} record`, `${t.team} is ${rc} against a schedule made of tissue paper`);
+      body = [`${t.team} is ${rc}, sitting in first, and everybody's already engraving the trophy. Slow. Down. ${t.paRank===1?"Nobody in this league has faced less resistance":"Almost nobody in this league has faced less resistance"}: ${f2(t.rec.pa)} points against${t.paRank===1?", the fewest in the league":""}. They haven't been tested. They've been escorted.`,
+        `Beat somebody real, @${t.mgr}. Then we'll talk.`];
+      break;
+    case "overreaction":
+      headline = pick(r,[`${t.team} is winning the championship. I'm not overreacting.`, `Cancel the season. ${t.team} already won it.`, `Week ${M.week}, and I'm calling it: ${t.team} wins it all`]);
+      body = [`${f2(t.wk)} points. ${f2(t.wk)}! Is it Week ${M.week}? Yes. Is that a small sample size? Maybe. Do I care? ABSOLUTELY NOT. ${t.team} just put the entire league on notice.`,
+        `Everybody else is playing for second place. Book it. Frame this page. Show it to your grandkids. And if I'm wrong, this column never happened.`];
+      break;
+    case "coaching":
+      headline = t.rank <= 3 ? P2(`${t.team} is winning in spite of @${t.mgr}`, `Imagine ${t.team} with a competent lineup-setter`) : P2(`It's not the roster. It's @${t.mgr}.`, `${t.team} has a coaching problem, and the coach is @${t.mgr}`);
+      body = [`I've been doing this a long time, and I have never seen anything like it. ${t.team} has left ${f2(t.bench)} points on the bench this season. ${f2(t.bench)}! That's the most in the league, and I'm only counting the single worst lineup call each week.`,
+        t.rank <= 3 ? `And they're ${rc}! Imagine this roster with somebody competent pressing the buttons. It would be ${f2(t.rec.pf + t.bench)} points of pure terror. @${t.mgr}, you're not a genius. You're a passenger.` : `The players are there. The points are there. The lineup is the problem. ${rc} with this roster? Somebody take the phone away from @${t.mgr} before Sunday.`];
+      break;
+    case "goat":
+      headline = P2(`${d.p.name} is the best player in fantasy football and it's not close`, `Put ${d.p.name} in the Hall of Fame. Today.`);
+      body = [`${f2(d.p.pts)} points. I watched every snap and I'm still not over it. ${d.p.name} is the best fantasy player on the planet, and if you disagree, you're wrong. ${d.team_note || `${d.p.team} knows it. @${d.p.mgr} knows it.`}`,
+        `Anybody in this league trying to trade for ${lastName(d.p.name)}: don't bother. Not for your whole roster. Not for your firstborn.`];
+      break;
+    case "benchhim":
+      headline = P2(`Bench ${d.p.name}. I don't care what the projections say.`, `${d.p.name} is washed, and somebody has to say it`);
+      body = [`Projected for ${f2(d.p.proj)}. Delivered ${f2(d.p.pts)}. That's not a slump. That's a statement. ${d.p.name} is cooked, and ${d.p.team} is the last to know.`,
+        `@${d.p.mgr}, if ${lastName(d.p.name)} is in your lineup next week, that's on you. I warned you. In print.`];
+      break;
+    case "median":
+      headline = P2(`The median game is a participation trophy`, `Abolish the median win. I'm dead serious.`);
+      body = [`${d.L.team} LOST this week. Lost! ${f2(d.L.pts)} to ${f2(d.W.pts)}. And what did they get for it? A win. A free, gift-wrapped win for scoring more than ${f2(d.med)}, which is to say, for being slightly above average.`,
+        `In my day you beat the guy in front of you or you went home. This league is handing out trophies for showing up. Shameful.`];
+      break;
+    case "sell":
+      headline = P2(`Sell your ${t.team} stock. Now.`, `The ${t.team} bubble just popped`);
+      body = [`${t.team} is ${rc}, ${ord(t.rank)} in the standings, and just put up ${f2(t.wk)}, one of the worst scores in the league this week. Everybody's going to call it a blip. I'm calling it what it is: the beginning of the end.`,
+        `Top teams don't score ${f2(t.wk)}. Frauds do. Get out while you can.`];
+      break;
+    case "trade": {
+      const wn = d.win.players.map(pname).join(" and "), ln = d.lose.players.map(pname).join(" and ");
+      headline = P2(`${d.win.team} fleeced ${d.lose.team}, and it's not even close`, `Somebody call the commissioner: the Week ${d.w} trade was a robbery`);
+      body = [`Remember the Week ${d.w} trade? I do. Since then, ${wn} ${d.win.players.length>1?"have":"has"} put up ${f2(d.win.s)} points in ${poss(d.win.team)} lineup. ${Pname({name:ln,pos:""})} ${d.lose.players.length>1?"have":"has"} given ${d.lose.team} ${f2(d.lose.s)}. That's a ${f2(d.gap)}-point heist in broad daylight.`,
+        `@${d.lose.mgr}, I hope it was worth it. It wasn't. Next time just hand over your lunch money directly and save everybody the paperwork.`];
+      break; }
+    case "forfeit":
+      headline = P2(`Forfeit now: nobody's stopping ${t.team}`, `${t.streak.n} straight. The rest of the league should just go home.`);
+      body = [`${t.streak.n} straight wins. ${t.streak.n}! The rest of this league should save itself the trouble and start setting lineups for next year. ${t.team} is ${rc} and playing like it's personally offended by the concept of losing.`,
+        `Somebody end this streak. Please. I'm begging. It's getting boring.`];
+      break;
+    case "blowup":
+      headline = P2(`Blow it up: ${t.team} needs to trade everybody`, `${t.streak.n} straight losses. Time for ${t.team} to hit the reset button.`);
+      body = [`${t.streak.n} losses in a row. ${rc}. At some point you have to look in the mirror, @${t.mgr}. This roster isn't working, and running it back next week is not a plan. It's a cry for help.`,
+        `Trade the stars. Trade the kicker. Trade the team name. Everything must go.`];
+      break;
+    case "kicker":
+      headline = P2(`Kickers are ruining fantasy football`, `Abolish the kicker. I'm serious.`);
+      body = [`${d.L.team} lost to ${d.W.team} by ${f2(d.margin)}. You know who scored ${f2(d.k.pts)} for ${d.W.team}? A kicker. ${d.k.name}. A person who is on the field for maybe four minutes decided a fantasy football game in Week ${M.week}.`,
+        `Every league in America should ban kickers tomorrow. I will not be taking questions.`];
+      break;
+    default: return null;
+  }
+  return {headline, body, pundit: PUNDIT};
 }
 
 function writeEdition(M){
@@ -827,7 +965,7 @@ function render(){
       ${A.beat && A.beat.pts - A.beat.proj >= 8 ? award("Beat the projections", A.beat.name, `${f2(A.beat.pts)} on a projection of ${f2(A.beat.proj)}, for ${A.beat.team}`):""}
       ${A.top?award("Top score", A.top.team, `${f2(A.top.pts)} points, best in the league`):""}
       ${A.blund?award(A.blund.real?"Bench blunder":"Hindsight award", A.blund.team, A.blund.real ? `Benched ${A.blund.b.name} (proj ${f2(A.blund.b.proj)}, scored ${f2(A.blund.b.pts)}) for ${A.blund.s.name} (proj ${f2(A.blund.s.proj)}, scored ${f2(A.blund.s.pts)}).` : `Started ${A.blund.s.name} (${f2(A.blund.s.pts)}) over ${A.blund.b.name} (${f2(A.blund.b.pts)}). Easy to say now.`):""}
-      ${M.median!=null?award("The median line", f2(M.median)+" pts", (()=>{const all=M.games.flatMap(g=>[g.W,g.L]); const up=all.filter(s=>s.med==="W").length; return `${up} of ${all.length} teams cleared it for the bonus win`;})()):""}
+      ${M.median!=null?award("The median line", f2(M.median)+" pts", (()=>{const all=M.games.flatMap(g=>[g.W,g.L]); const split=M.games.filter(g=>!g.tie && g.L.med==="W").map(g=>g.L.team); const near=all.filter(s=>s.med==="L").sort((a,b)=>b.pts-a.pts)[0]; const parts=[]; if (split.length) parts.push(`${split.join(" and ")} lost but banked the median win.`); if (near) parts.push(`Just missed: ${near.team}, short by ${f2(M.median-near.pts)}.`); return parts.join(" ");})()):""}
       ${A.unlucky?award("Unluckiest loser", A.unlucky.team, `Scored ${f2(A.unlucky.pts)}, would have beaten ${A.unlucky.allPlay} of ${M.n-1} teams, and lost`):""}
       ${A.lucky?award("Luckiest winner", A.lucky.team, `Won with ${f2(A.lucky.pts)}, which beats only ${A.lucky.allPlay} of ${M.n-1} teams`):""}
       ${A.bust && A.bust.proj - A.bust.pts >= 8 ? award("Bust of the week", A.bust.name, `${f2(A.bust.pts)} on a projection of ${f2(A.bust.proj)}, for ${A.bust.team}`) : (A.dud?award("Dud of the week", A.dud.name, `${f2(A.dud.pts)} pts as a starter for ${A.dud.team}`):"")}
@@ -837,7 +975,7 @@ function render(){
       ${M.standings.map((s,i)=>`<tr class="${i+1===M.playoffLine && i<M.standings.length-1?"cut":""}"><td>${i+1}</td><td title="${esc(s.team)}">${esc(s.team)}</td><td>${recStr(s)}</td><td>${f2(s.pf)}</td><td>${s.streak.n?s.streak.k+s.streak.n:"–"}</td></tr>`).join("")}
       </tbody></table></div>
     </div>
-    ${E.column?`<div class="hot"><h3>The Hot Take <small>OPINION</small></h3><div class="hh">${esc(E.column.headline)}</div>${paras(E.column.body)}</div>`:""}
+    ${E.column?`<div class="hot"><h3>The Hot Take <small>OPINION</small></h3><div class="hh">${esc(E.column.headline)}</div>${E.column.pundit?`<p style="font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.7">By ${esc(E.column.pundit)}</p>`:""}${paras(E.column.body)}</div>`:""}
   </aside>`;
 
   const others = M.games.filter(g=>g.id!==E.leadId).sort((a,b)=>b.priority-a.priority);
@@ -910,7 +1048,7 @@ function npHTML(M, E){
   if (A.beat && A.beat.pts - A.beat.proj >= 8) award("Beat the Projections", A.beat.name, `${f2(A.beat.pts)} on a ${f2(A.beat.proj)} projection`);
   if (A.top) award("Top Score", A.top.team, `${f2(A.top.pts)} points`);
   if (A.blund) award(A.blund.real ? "Bench Blunder" : "Hindsight Award", A.blund.team, `${A.blund.b.name} (${f2(A.blund.b.pts)}) sat; ${A.blund.s.name} (${f2(A.blund.s.pts)}) started`);
-  if (M.median != null) award("The Median Line", f2(M.median)+" pts", `${M.games.flatMap(g=>[g.W,g.L]).filter(s=>s.med==="W").length} of ${M.n} teams cleared it`);
+  if (M.median != null) award("The Median Line", f2(M.median)+" pts", (()=>{const all=M.games.flatMap(g=>[g.W,g.L]); const split=M.games.filter(g=>!g.tie && g.L.med==="W").map(g=>g.L.team); const near=all.filter(s=>s.med==="L").sort((a,b)=>b.pts-a.pts)[0]; const parts=[]; if (split.length) parts.push(`${split.join(" and ")} lost but banked the median win.`); if (near) parts.push(`Just missed: ${near.team}, short by ${f2(M.median-near.pts)}.`); return parts.join(" ");})());
   if (A.unlucky) award("Unluckiest Loser", A.unlucky.team, `${f2(A.unlucky.pts)}, beat ${A.unlucky.allPlay} of ${M.n-1} teams on paper`);
   if (A.lucky) award("Luckiest Winner", A.lucky.team, `Won with ${f2(A.lucky.pts)}`);
   if (A.bust && A.bust.proj - A.bust.pts >= 8) award("Bust of the Week", A.bust.name, `${f2(A.bust.pts)} on a ${f2(A.bust.proj)} projection`);
@@ -959,7 +1097,7 @@ function npHTML(M, E){
   const back = `<div class="np-page"><div class="np-in">${run(lastPage,"Opinion · Power Poll · Transactions")}
     <div class="np-backtop">
       <div>
-        ${E.column?`<div class="np-hot"><div class="np-sec inv">The Hot Take</div><h2 class="np-h2">${esc(E.column.headline)}</h2><div class="np-body">${paras(E.column.body)}</div></div>`:""}
+        ${E.column?`<div class="np-hot"><div class="np-sec inv">The Hot Take</div><h2 class="np-h2">${esc(E.column.headline)}</h2>${E.column.pundit?`<div class="np-by">By ${esc(E.column.pundit)}</div>`:""}<div class="np-body">${paras(E.column.body)}</div></div>`:""}
         <div class="np-sec">Transaction Wire</div>
         ${trades.map(t=>{const by={}; t.adds.forEach(a=>{(by[a.team]=by[a.team]||[]).push(a.p.name)}); return `<div class="np-wire"><b>Blockbuster trade.</b> ${Object.entries(by).map(([tm,ps])=>`${esc(tm)} gets ${esc(ps.join(", "))}`).join(". ")}.</div>`;}).join("")}
         ${pickups.map(t=>`<div class="np-wire"><b>${t.type==="waiver"?"Waiver claim":"Free agent"}${t.bid?` ($${t.bid})`:""}.</b> ${esc(t.adds[0].team)} adds ${esc(t.adds.map(a=>`${a.p.name} (${a.p.pos})`).join(", "))}${t.drops.length?`; cuts ${esc(t.drops.map(d=>d.p.name).join(", "))}`:""}.</div>`).join("")}
@@ -1065,6 +1203,7 @@ function factsFor(M){
       playoff_bubble:g.bubble||undefined,
       angles_ranked:g.angles.filter(a=>a.score>=20).slice(0,4).map(a=>angleText(g,a)),
       suggested_primary_angle:(ANG[g.primary.k]||ANG.default).kicker})),
+    hot_take_suggestion: M.take ? (()=>{ const c = writeColumn(M, ()=>0); return c ? {thesis:c.headline, evidence:c.body.join(" ")} : null; })() : null,
     suggested_lead_game_id: [...M.games].sort((a,b)=>b.priority-a.priority)[0]?.id,
     awards:{player_of_week:A.pow&&`${A.pow.name} ${f2(A.pow.pts)} for ${A.pow.team}`, bust:A.bust&&`${A.bust.name} ${f2(A.bust.pts)} on proj ${f2(A.bust.proj)} for ${A.bust.team}`, unluckiest_loser:A.unlucky&&`${A.unlucky.team} ${f2(A.unlucky.pts)}`, luckiest_winner:A.lucky&&`${A.lucky.team} ${f2(A.lucky.pts)}`},
     standings:M.standings.map(s=>`${s.team} ${recStr(s)} PF ${f2(s.pf)}`),
@@ -1082,7 +1221,8 @@ STORY SELECTION: each game has "angles_ranked" (best first) computed from how un
 Reply with ONLY this JSON:
 {"lead":{"id":<game id>,"kicker":"<1-3 word label>","headline":"<max 11 words>","dek":"<one sentence subhead>","body":["<4-5 paragraphs, 50-90 words each>"]},
  "games":[{"id":<game id>,"kicker":"<1-3 words>","headline":"<max 10 words>","dek":"<one sentence>","body":["<2-3 paragraphs, 40-70 words each>"]}],
- "column":{"headline":"<hot take headline>","body":["<2 short opinion paragraphs about the league's big picture>"]}}
+ "column":{"headline":"<hot take headline>","body":["<2-3 short paragraphs>"]}}
+The "column" is THE HOT TAKE by Rex Pemberton III, a loud, contrarian sports-TV talking head. It must argue a bold, debatable THESIS (a fraud call, a bold prediction, blaming the manager, declaring a trade a robbery, demanding a rule change), never a neutral recap of who is good or bad. Start from "hot_take_suggestion" unless the data supports a spicier take; back it with numbers from the data, commit fully, and end with a signature line like "I said what I said."
 "games" must include every game except the lead.
 
 DATA:
@@ -1124,7 +1264,7 @@ function applyAI(out){
     E.stories[E.leadId] = {...E.stories[E.leadId], ...clean(out.lead)};
   }
   for (const s of (out && out.games) || []) if (ids.has(+s.id) && s.headline) E.stories[+s.id] = {...E.stories[+s.id], ...clean(s)};
-  if (out && out.column && out.column.headline) E.column = {headline:String(out.column.headline), body:(out.column.body||[]).map(String)};
+  if (out && out.column && out.column.headline) E.column = {headline:String(out.column.headline), body:(out.column.body||[]).map(String), pundit:PUNDIT};
   E.ai = true;
   render();
 }

@@ -3008,6 +3008,129 @@ function writeObit(M, rid, how, r){
   const svc = pick(r, ["Services will be held in the group chat, indefinitely.", "In lieu of flowers, the family asks for trade offers.", "Visitation is Sunday; attendance is expected to be light.", "The family requests privacy and a better draft slot.", "A celebration of life will be held at next year's draft."]);
   return {rid, team, seed, dates:`Week 1 – Week ${M.week}, ${M.season}`, text:[open, end, surv, svc].filter(Boolean).join(" ")};
 }
+// regular-season numbers the playoff columns lean on: points, all-play record, luck (wins minus what the scoring deserved)
+function regSeason(M, raw){
+  const ids = M.standings.map(s => +s.rid), reg = {}; ids.forEach(id => reg[id] = {pf:0, apw:0, apl:0, w:0, g:0, h2h:{}});
+  for (let w = 1; w < M.po; w++) { const es = ((raw.weeks || {})[w] || []).filter(e => e.matchup_id != null && reg[+e.roster_id]); if (!es.some(e => +e.points > 0)) continue;
+    for (const e of es) { const id = +e.roster_id, R = reg[id], o = es.find(x => x !== e && x.matchup_id === e.matchup_id);
+      R.pf += +e.points; R.apw += es.filter(x => x !== e && +x.points < +e.points).length; R.apl += es.filter(x => x !== e && +x.points > +e.points).length;
+      if (o) { R.g++; if (+e.points > +o.points) R.w++; (R.h2h[+o.roster_id] = R.h2h[+o.roster_id] || []).push({w, won: +e.points > +o.points, pts:+e.points, opp:+o.points}); } } }
+  ids.forEach(id => { const R = reg[id], ap = R.apw + R.apl; R.luck = ap ? R.w - R.g * R.apw / ap : 0; });
+  const pfRank = id => 1 + ids.filter(x => reg[x].pf > reg[id].pf).length;
+  return {ids, reg, pfRank};
+}
+function playoffColumn(M, raw, r){
+  const B = M.br; if (!B || B.champion) return null;
+  const {ids, reg, pfRank} = regSeason(M, raw), n = ids.length, tn = B.tn, seed = id => B.seedOf[id];
+  const mgr = rid => { const m = (M.standings.find(s => +s.rid === rid) || {}).mgr; return m && m !== "an unclaimed roster" ? m : null; };
+  const at = rid => mgr(rid) ? `@${mgr(rid)}` : tn(rid);
+  const pts = (w, rid) => +(((raw.weeks || {})[w] || []).find(e => +e.roster_id === rid) || {}).points || 0;
+  const wks = B.roundWeeks(B.r).filter(w => w <= M.week), span = wks.length > 1 ? "over the two weeks" : "this week";
+  const tot = id => wks.reduce((a, w) => a + pts(w, id), 0);
+  const ranked = [...ids].sort((a,b) => tot(b) - tot(a)), wkRank = id => 1 + ranked.filter(x => tot(x) > tot(id)).length;
+  const alive = B.alive, playing = new Set([...alive, ...B.elimNow.map(x => x.rid)]);
+  const single = B.legs === 1;
+  const titleG = M.games.filter(g => g.br && g.br.kind === "title" && g.br.decided && !g.tie);
+  const nextName = B.r < B.R ? B.roundName(B.r + 1) : "second week of the Championship", nx = B.next.filter(x => x.a && x.b);
+  const oddsLead = [...alive].sort((a,b) => (B.odds[b]||0) - (B.odds[a]||0));
+  const formRank = [...alive].sort((a,b) => B.form[b].mu - B.form[a].mu);
+  const P2 = (a, b) => pick(r, [a, b]), C = [];
+  const add = (k, score, f) => C.push({k, score: score + r()*14, f});
+  // the upset call for next round: the underdog (by odds) whose recent scoring is closest to its opponent's
+  const upset = (() => { let best = null; for (const x of nx) { const [fav, dog] = (B.odds[x.a]||0) >= (B.odds[x.b]||0) ? [x.a, x.b] : [x.b, x.a];
+      const gap = B.form[fav].mu - B.form[dog].mu; if (!best || gap < best.gap) best = {fav, dog, gap}; } return best; })();
+  const upsetLine = () => upset ? `My upset pick for the ${nextName}: ${tn(upset.dog)} over ${tn(upset.fav)}. ${upset.gap <= 0 ? `${tn(upset.dog)} has actually been the better team for a month, averaging ${f1(B.form[upset.dog].mu)} to ${f1(B.form[upset.fav].mu)}.` : `The gap over the last four weeks is ${f1(upset.gap)} points a week. That's one good afternoon.`}` : "";
+
+  // 1. the best team this week went home
+  for (const x of B.elimNow) { const k = wkRank(x.rid); if (k <= 2 && k < n) add("robbed", 86 - k*6, () => {
+    const by = x.by, bk = wkRank(by);
+    return [P2(`The ${ord(k)}-best team in fantasy ${span} is eliminated`, `${tn(x.rid)} did everything right and went home anyway`),
+      [`${tn(x.rid)} scored ${f2(tot(x.rid))} ${span}. ${k === 1 ? "That's the highest score in the entire league. Of anyone." : `That's the ${ord(k)}-highest score in the entire league.`} And ${tn(x.rid)} is done, because ${tn(by)} ${bk < k ? `was the one team that scored more` : `happened to be ${f2(tot(by) - tot(x.rid))} points better on the one afternoon that counted`}.`,
+       `The playoffs aren't a test of who's best. They're a test of who's best on one specific Sunday, and I'm tired of everyone pretending otherwise. ${at(x.rid)}, you deserved better. The bracket doesn't care what you deserved.`, `I said what I said.`]]; }); }
+  // 2. lost the playoffs from the bench
+  if (single) for (const g of titleG) { const hb = g.L.tb || g.L.hb; if (hb && hb.gain > g.margin && hb.gain >= 8) add("bench", g.L.tb ? 76 : 64, () => [
+    P2(`${tn(+g.L.rid)} lost a playoff game from the bench`, `The worst lineup call of the season came in the playoffs`),
+    [`${tn(+g.L.rid)} lost by ${f2(g.margin)}. ${hb.b.name} scored ${f2(hb.b.pts)} on the bench. ${hb.s.name} started and scored ${f2(hb.s.pts)}. I'll let you do the math. Actually, no, I won't: that's ${an(f2(hb.gain))} ${f2(hb.gain)}-point swing in ${an(f2(g.margin))} ${f2(g.margin)}-point loss.`,
+     `${M.po - 1} weeks of setting lineups, and ${at(+g.L.rid)} picked this week to get one wrong. Playoff football is unforgiving. So is this column.`]]); }
+  // 3. a team outside the bracket outscored almost everyone in it
+  const outs = ids.filter(id => !B.playoffTeams.includes(id)).sort((a,b) => tot(b) - tot(a));
+  if (outs[0]) { const o = outs[0], beat = [...playing].filter(id => tot(id) < tot(o)).length;
+    if (wkRank(o) <= 2 && beat >= Math.max(2, playing.size - 1)) add("snub", 60 + (reg[o].luck <= -1 ? 10 : 0), () => [
+      P2(`${tn(o)} should be in this bracket`, `The best team ${span} wasn't even in the playoffs`),
+      [`${tn(o)} put up ${f2(tot(o))} ${span}, more than ${beat === playing.size ? "every team" : `${numw(beat)} of the ${numw(playing.size)} teams`} still playing for the title. Where was ${tn(o)}? ${(B.lb||[]).some(m => +m.t1 === o || +m.t2 === o) ? "The Toilet Bowl." : "Nowhere. Watching."}`,
+       reg[o].luck <= -1 ? `This team scored ${ord(pfRank(o))}-most in the regular season and got about ${f1(-reg[o].luck)} fewer wins than its scoring deserved. The schedule decided the bracket, and the bracket is worse for it.` : `Some teams peak in September. Some peak in December. ${tn(o)} peaked about three weeks too late, and I'm not sure which is sadder.`,
+       `Change the playoff format. I'm serious.`]]); }
+  // 4. a kicker decided a playoff game
+  if (single) for (const g of titleG) { const k = g.W.starters.find(p => p.pos === "K"); if (k && k.pts > g.margin && k.pts >= 10) add("kicker", 64, () => [
+    P2(`A kicker decided a playoff game. Again.`, `${k.name} just ended ${poss(tn(+g.L.rid))} season, and I'm furious`),
+    [`${tn(+g.W.rid)} beat ${tn(+g.L.rid)} by ${f2(g.margin)}. ${k.name}, a kicker, scored ${f2(k.pts)}. A season of trades, waiver claims and 2am lineup changes, and it came down to a man who is on the field for four minutes.`,
+     `${at(+g.L.rid)}, I'm sorry. Every league in America should ban kickers, and this league should go first.`]]); }
+  // 5. won with a below-median score: living on borrowed time
+  if (single) for (const g of titleG) { const k = wkRank(+g.W.rid); if (k > n/2) add("escaped", 72, () => [
+    P2(`${tn(+g.W.rid)} is living on borrowed time`, `${tn(+g.W.rid)} advanced. ${tn(+g.W.rid)} did not play well.`),
+    [`${f2(g.W.pts)} points. That's the ${ord(k)}-best score in the league this week, and it was enough, because ${tn(+g.L.rid)} somehow managed ${f2(g.L.pts)}. Half the league would have beaten ${tn(+g.W.rid)} this week. Its opponent wasn't in that half.`,
+     `You don't get lucky twice in the playoffs. ${at(+g.W.rid)}, enjoy the ${nextName}. Pack light.`]]); }
+  // 6. a blowout that reads like a coronation
+  if (single) for (const g of titleG) { if (g.margin >= 40 && wkRank(+g.W.rid) === 1) add("statement", 64, () => [
+    P2(`Cancel the rest of the playoffs. ${tn(+g.W.rid)} already won.`, `${tn(+g.W.rid)} just ended the suspense`),
+    [`${f2(g.W.pts)} points. The best score in the league, a ${f2(g.margin)}-point win, in a playoff game. That's not advancing. That's a statement read aloud to the entire league.`,
+     `The ${nextName} is a formality. I've seen enough. ${at(+g.W.rid)}, clear some space on the mantel. And if I'm wrong, this column never happened.`]]); }
+  // 7. one player carried a team through
+  if (single) for (const g of titleG) { const b = g.W.best; if (b && b.pts >= 35 && b.pts > g.margin && b.pos !== "K" && b.pos !== "DEF") add("hero", 60, () => [
+    P2(`${b.name} is carrying ${tn(+g.W.rid)} through the playoffs`, `${tn(+g.W.rid)} is a one-man team, and the man is ${b.name}`),
+    [`${pname(b)} scored ${f2(b.pts)}. ${tn(+g.W.rid)} won by ${f2(g.margin)}. Take ${lastName(b.name)} out of the lineup and ${tn(+g.W.rid)} is watching the ${nextName} from the couch.`,
+     `That's not a team. That's a hostage situation with one hero. If ${lastName(b.name)} has a normal week, ${at(+g.W.rid)} is in real trouble.`]]); }
+  // 8. a top seed whose record outran its scoring
+  for (const id of alive.filter(id => seed(id) <= 2)) if (reg[id].luck >= 1.5 && oddsLead[0] !== id) add("fraud", 70, () => [
+    P2(`The ${ord(seed(id))} seed is a fraud, and the ${nextName} will prove it`, `${tn(id)} is still alive. ${tn(id)} is still a fraud.`),
+    [`Let's talk about ${tn(id)}, the ${ord(seed(id))} seed. Play every team every week in the regular season and ${tn(id)} went ${reg[id].apw}-${reg[id].apl}. That's about ${f1(reg[id].luck)} more wins than its scoring deserved. The seed was a gift from the schedule.`,
+     `The title odds agree with me: ${pctS(B.odds[id]||0)}, behind ${tn(oddsLead[0])} at ${pctS(B.odds[oddsLead[0]]||0)}. ${at(id)}, the luck ran all season. It doesn't run forever.`, `I said what I said.`]]);
+  // 9. round 1 bye teams that were already cold
+  if (B.r === 1) for (const id of B.byes) { const fr = formRank.indexOf(id) + 1; if (fr > alive.length / 2) add("rust", 66, () => [
+    P2(`The bye is going to cost ${tn(id)}`, `${tn(id)} earned a week off. It needed a week of practice.`),
+    [`${tn(id)} spent Round 1 resting. Congratulations. Over its last four games, it averaged ${f1(B.form[id].mu)} points, ${ord(fr)} among the ${numw(alive.length)} teams still alive. A bye doesn't fix that. It just gives you a week to think about it.`,
+     `${at(id)}, the teams that played this week are warm. You're not. Good luck.`]]); }
+  // 10. the lowest seed still alive has been the best team for a month
+  const cind = [...alive].sort((a,b) => seed(b) - seed(a))[0];
+  if (cind && seed(cind) > B.playoffTeams.length / 2 && formRank[0] === cind) add("cinderella", 68, () => [
+    P2(`Mark it down: the ${ord(seed(cind))} seed wins it all`, `Nobody wants to play ${tn(cind)} right now`),
+    [`${tn(cind)} snuck in as the ${ord(seed(cind))} seed, and everyone treated it like a courtesy invite. Meanwhile, over the last four weeks, nobody left in this bracket has scored more: ${f1(B.form[cind].mu)} a week.`,
+     `Seeds are about September. Titles are about December. ${tn(cind)} is the hottest team in the bracket, and I'm riding it all the way. ${at(cind)}, don't make me look stupid.`]]);
+  // 11. the team that led the league in points is out
+  for (const x of B.elimNow) if (pfRank(x.rid) === 1) add("giant", 64, () => [
+    P2(`The best team of the regular season is out`, `${tn(x.rid)} scored the most points all year. It doesn't matter anymore.`),
+    [`${tn(x.rid)} scored ${f2(reg[x.rid].pf)} points in the regular season, the most in the league. It's done, after one bad matchup against ${tn(x.by)}.`,
+     `${M.po - 1} weeks to prove you're the best, one week to lose it all. ${at(x.rid)}, the regular-season points title is a real thing, and I'll print it in the Gazette for you. It's all I can offer.`]]);
+  // 12. rematch: the underdog already beat the favorite this year
+  for (const x of nx) { const [fav, dog] = seed(x.a) <= seed(x.b) ? [x.a, x.b] : [x.b, x.a], h = (reg[dog].h2h[fav] || []).filter(m => m.won);
+    if (h.length) add("rematch", 62, () => [
+      P2(`${tn(dog)} already beat ${tn(fav)}. It's about to happen again.`, `Upset alert: ${tn(dog)} has ${poss(tn(fav))} number`),
+      [`Everybody sees ${tn(fav)}, the ${ord(seed(fav))} seed, and assumes it cruises through the ${nextName}. Everybody forgot Week ${h[0].w}, when ${tn(dog)} beat ${tn(fav)} ${f2(h[0].pts)} to ${f2(h[0].opp)}.`,
+       `Seeds don't play the games. Matchups do. ${tn(dog)} over ${tn(fav)} in the ${nextName}. Screenshot it.`]]); }
+  // 13. the Toilet Bowl was the better show
+  const tb = M.games.filter(g => g.br && g.br.kind === "toilet"), topTB = [...tb].sort((a,b) => (b.W.pts + b.L.pts) - (a.W.pts + a.L.pts))[0];
+  if (single && topTB && titleG.length && titleG.every(g => g.W.pts + g.L.pts < topTB.W.pts + topTB.L.pts)) add("toilet", 58, () => [
+    P2(`The best game of the week was in the Toilet Bowl`, `Somebody tell the Toilet Bowl it's making the playoffs look bad`),
+    [`${tn(+topTB.W.rid)} ${f2(topTB.W.pts)}, ${tn(+topTB.L.rid)} ${f2(topTB.L.pts)}. That's ${f2(topTB.W.pts + topTB.L.pts)} combined points, more than any playoff game this week. Two eliminated teams played for nothing and put on a better show than the teams playing for everything.`,
+     `The playoff teams should be embarrassed. I know I am, and I just write about it.`]]);
+  // 14. the chalk held
+  if (single && titleG.length >= 2 && titleG.every(g => seed(+g.W.rid) < seed(+g.L.rid))) add("chalk", 52, () => [
+    P2(`The chalk held, and I've never been more bored`, `Every favorite won. Wake me up for the ${nextName}.`),
+    [`${numw(titleG.length).replace(/^./, c => c.toUpperCase())} playoff games, ${numw(titleG.length)} favorites advancing. No drama, no upsets, no fun. The seeds did exactly what the seeds said they'd do.`, upsetLine() || `Somebody pull an upset next week. For the good of the league.`]]);
+  // 15. hand the favorite the trophy now
+  if (oddsLead[0] && (B.odds[oddsLead[0]] || 0) >= .45) add("coronation", 50, () => { const f = oddsLead[0];
+    return [P2(`It's over. ${tn(f)} wins the title.`, `Save the suspense. ${tn(f)} is your champion.`),
+      [`${pctS(B.odds[f])}. That's ${poss(tn(f))} chance to win the whole thing, according to 4,000 simulated brackets. Nobody else is close. Over the last four weeks, it's averaged ${f1(B.form[f].mu)} a week.`,
+       `I'm calling it now so I can take credit later. ${at(f)}, you're welcome. If it goes wrong, blame the simulations.`]]; });
+  // 16. fallback: go against the favorite
+  if (oddsLead[0]) add("contrarian", 40, () => { const f = oddsLead[0];
+    return [P2(`Everybody's picking ${tn(f)}. Everybody's wrong.`, `Fade ${tn(f)}. Trust me.`),
+      [`The numbers say ${tn(f)} is the favorite: ${pctS(B.odds[f]||0)} to win it all. Everybody sees the ${ord(seed(f))} seed and assumes it's destiny. Favorites are favorites right up until the one Sunday they aren't.`,
+       upsetLine() || `Somebody in this bracket is going to beat ${tn(f)}. I'm just not going to tell you who yet.`, `I said what I said.`]]; });
+  if (!C.length) return null;
+  const top = C.sort((a,b) => b.score - a.score)[0], [headline, body] = top.f();
+  return {headline, body: body.filter(Boolean), pundit: PUNDIT, key: top.k};
+}
 function champColumn(M, raw, r){
   const B = M.br; if (!B || !B.champion) return null;
   const C = B.champion, po = M.po, nx = (+M.season || 0) ? +M.season + 1 : "next season";
@@ -3094,6 +3217,7 @@ function playoffEdition(M, E, raw, variant){
   E.obits = B.elimNow.map(x => writeObit(M, x.rid, x, r));
   E.toilet = M.games.filter(g => g.br.kind === "toilet" || g.br.kind === "other").map(g => ({kicker: g.br.kind === "toilet" ? `Toilet Bowl · ${B.round}` : "Consolation", text:`${g.W.team} ${f2(g.W.pts)}, ${g.L.team} ${f2(g.L.pts)}. ${E.stories[g.id] ? E.stories[g.id].dek : ""}`.trim()}));
   if (B.champion) { E.review = seasonReview(M, raw); E.column = champColumn(M, raw, r) || E.column; }
+  else E.column = playoffColumn(M, raw, r) || E.column;
   // horoscopes: eliminated teams get an offseason forecast; after the final, everyone does
   if (E.horo && E.horo.items) { const OFF = [t => `The stars see a long offseason for ${t}, and a draft-day redemption arc. Probably.`, t => `Rest. Reflect. Then trade for a running back in August. The stars have seen ${poss(t)} bench.`,
       t => `The planets realign in late August. ${t} should be ready with a better plan than last time.`, t => `Next season, the stars suggest ${t} set a lineup every week. It's a small thing. It adds up.`,

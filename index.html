@@ -189,19 +189,23 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .bdg{position:relative;display:inline-grid;place-items:center;width:var(--bs,24px);height:var(--bs,24px);border-radius:50%;background:var(--ink);color:var(--paper);font-family:var(--mono);font-weight:600;font-size:calc(var(--bs,24px)*.44);line-height:1;flex:none;box-shadow:0 0 0 2px var(--paper);overflow:hidden}
 .bdg.heist{background:var(--red);box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--red)}
 .bdg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--tint)}
-.mpt{position:absolute;transform:translate(-50%,-50%);--bs:28px;display:block;line-height:0}
+.bw{position:relative;display:inline-block;line-height:0;flex:none}
+.bno{position:absolute;right:calc(var(--bs,24px)*-.18);bottom:calc(var(--bs,24px)*-.14);min-width:calc(var(--bs,24px)*.56);height:calc(var(--bs,24px)*.56);padding:0 2px;border-radius:999px;background:var(--ink);color:var(--paper);font:600 calc(var(--bs,24px)*.36)/calc(var(--bs,24px)*.56) var(--mono);font-style:normal;text-align:center;box-shadow:0 0 0 1.5px var(--paper);box-sizing:border-box}
+.mtrue{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--ink);z-index:1}
+.mlead{position:absolute;height:1.5px;margin-top:-.75px;background:var(--ink);opacity:.55;transform-origin:0 50%;z-index:1}
+.mpt{position:absolute;transform:translate(-50%,-50%);--bs:28px;display:block;line-height:0;z-index:2}
 .mkey{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(180px,42%),1fr));gap:8px 16px;padding:4px 16px 16px 34px;font-size:13.5px;font-weight:600}
 .mkey div{display:flex;gap:9px;align-items:center;min-width:0}
 .mkey span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mkey .bdg{--bs:24px}
+.mkey .bw{--bs:24px}
 .rc-name{display:flex;gap:9px;align-items:center;min-width:0}
-.rc-name .bdg{--bs:30px}
+.rc-name .bw{--bs:30px}
 
 .ml{position:absolute;transform:translate(0,-50%);margin-left:10px;font-family:var(--body);font-weight:600;font-size:clamp(11px,1.3vw,13.5px);white-space:nowrap;z-index:1;text-shadow:0 0 3px var(--paper),0 0 3px var(--paper),0 0 3px var(--paper);pointer-events:none}
 .ml.l{transform:translate(-100%,-50%);margin-left:-10px}
 .cards{display:grid;grid-template-columns:repeat(var(--cc,4),minmax(0,1fr));gap:14px}
 @media (max-width:1100px){.cards{grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}}
-@media (max-width:560px){.mkey{padding-left:16px;font-size:13px}.mkey .bdg{--bs:22px}.mpt{--bs:24px}}
+@media (max-width:560px){.mkey{padding-left:16px;font-size:13px}.mkey .bw{--bs:22px}.mpt{--bs:24px}}
 .rc{border:1px solid var(--ink);padding:12px 12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0;break-inside:avoid}
 .rc-hd{display:grid;gap:4px;border-bottom:3px double var(--ink);padding-bottom:6px}
 .rc .tm{font-family:var(--display);font-weight:800;font-size:21px;text-transform:uppercase;line-height:1;text-wrap:balance}
@@ -2523,8 +2527,10 @@ function niceTicks(lo, hi, want = 6){
   return out;
 }
 // a team's badge: its Sleeper avatar, with its report-card number underneath as the fallback (printed pages always use the number)
-const teamBadge = (t, print) => `<span class="bdg ${t.quad}"><b>${t.no}</b>${!print && t.avatar ? `<img src="${esc(t.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>`;
-document.addEventListener("error", e => { const el = e.target; if (el && el.tagName === "IMG" && el.parentElement && el.parentElement.classList.contains("bdg")) el.remove(); }, true);
+const teamBadge = (t, print) => { const pic = !print && t.avatar;
+  return `<span class="bw"><span class="bdg ${t.quad}"><b>${t.no}</b>${pic ? `<img src="${esc(t.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>${pic ? `<i class="bno">${t.no}</i>` : ""}</span>`; };
+// a picture that fails to load falls back to the plain number (and drops the now-redundant tag)
+document.addEventListener("error", e => { const el = e.target; if (el && el.tagName === "IMG" && el.parentElement && el.parentElement.classList.contains("bdg")) { const tag = el.parentElement.parentElement.querySelector(".bno"); if (tag) tag.remove(); el.remove(); } }, true);
 function draftMapHTML(D, print){
   const T = D.T, xs = T.map(t=>t.val), ys = T.map(t=>t.st);
   const xr = Math.max(...xs, D.mVal) - Math.min(...xs, D.mVal) || 10, yr = Math.max(...ys) - Math.min(...ys) || 50;
@@ -2537,31 +2543,40 @@ function draftMapHTML(D, print){
   for (const v of yt) h += `<div class="dg gy" style="top:${Y(v)}%"></div><div class="dtick ty" style="top:${Y(v)}%">${fmtInt(v)}</div>`;
   h += `<div class="davg ax" style="left:${X(D.mVal)}%"></div><div class="davg ay" style="top:${Y(D.mSt)}%"></div>`;
   h += `<div class="dql tl">${QUADS.bought}</div><div class="dql tr">${QUADS.heist}</div><div class="dql bl">${QUADS.crime}</div><div class="dql br">${QUADS.sneaky}</div>`;
-  [...T].sort((a,b)=>b.no-a.no).forEach(t => { h += `<span class="mpt" style="left:${X(t.val)}%;top:${Y(t.st)}%">${teamBadge(t, print)}</span>`; });
+  [...T].sort((a,b)=>b.no-a.no).forEach(t => { h += `<span class="mpt" data-x="${X(t.val)}" data-y="${Y(t.st)}" style="left:${X(t.val)}%;top:${Y(t.st)}%">${teamBadge(t, print)}</span>`; });
   h += `</div><div class="dmap-x">Value vs ADP, ${D.auction ? "dollars" : "net picks"} →</div></div>`;
   h += `<div class="mkey">${[...T].sort((a,b)=>a.no-b.no).map(t=>`<div>${teamBadge(t, print)}<span>${esc(t.team)}</span></div>`).join("")}</div>`;
   return h;
 }
-// nudge overlapping map labels apart (runs after layout, on screen and before printing)
-function fixMapLabels(root){
-  const hit = (a, b) => a.right > b.left + 1 && b.right > a.left + 1 && a.bottom > b.top + 1 && b.bottom > a.top + 1;
+// push overlapping map circles apart; anything moved more than a few pixels gets a dot at its true spot and a thin line to it
+function spreadMap(root){
   for (const plot of (root || document).querySelectorAll(".dmap-plot")) {
-    const box = plot.getBoundingClientRect();
-    const fixed = [...plot.querySelectorAll(".dql, .md")].map(e=>e.getBoundingClientRect());
-    const ls = [...plot.querySelectorAll(".ml")].map(l => ({l, y:parseFloat(l.style.top)})).sort((a,b)=>a.y-b.y);
-    const placed = [];
-    for (const {l} of ls) {
-      l.style.marginTop = "0px";
-      const bad = () => { const r = l.getBoundingClientRect(); return r.left < box.left || r.right > box.right || fixed.some(f=>hit(r,f)) || placed.some(p=>hit(r,p)); };
-      const opts = [[l.classList.contains("l"), 0]];
-      for (const dy of [0, 14, -14, 26, -26]) for (const side of [false, true]) opts.push([side, dy]);
-      let ok = false;
-      for (const [side, dy] of opts) { l.classList.toggle("l", side); l.style.marginTop = dy + "px"; if (!bad()) { ok = true; break; } }
-      if (!ok) { l.classList.toggle("l", opts[0][0]); l.style.marginTop = "0px"; }
-      placed.push(l.getBoundingClientRect());
+    plot.querySelectorAll(".mlead, .mtrue").forEach(e=>e.remove());
+    const W = plot.clientWidth, H = plot.clientHeight; if (!W || !H) continue;
+    const ms = [...plot.querySelectorAll(".mpt")];
+    const P = ms.map((m,i) => { const x = +m.dataset.x/100*W, y = +m.dataset.y/100*H; return {m, x0:x, y0:y, x, y, r:(m.firstElementChild ? m.firstElementChild.offsetWidth : 28)/2 + 3, i}; });
+    for (let it = 0; it < 120; it++) { let moved = false;
+      for (let a = 0; a < P.length; a++) for (let b = a+1; b < P.length; b++) { const A = P[a], B = P[b];
+        let dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy); const need = A.r + B.r;
+        if (d >= need) continue;
+        if (d < .01) { const ang = (a * 2.4 + b) % (2*Math.PI); dx = Math.cos(ang); dy = Math.sin(ang); d = 1; }
+        const push = (need - d) / 2 + .2, ux = dx/d, uy = dy/d;
+        A.x -= ux*push; A.y -= uy*push; B.x += ux*push; B.y += uy*push; moved = true; }
+      for (const p of P) { p.x = Math.max(p.r - 3, Math.min(W - p.r + 3, p.x)); p.y = Math.max(p.r - 3, Math.min(H - p.r + 3, p.y)); }
+      if (!moved) break; }
+    for (const p of P) {
+      p.m.style.left = p.x + "px"; p.m.style.top = p.y + "px";
+      const dist = Math.hypot(p.x - p.x0, p.y - p.y0);
+      if (dist > 5) {
+        const dot = document.createElement("span"); dot.className = "mtrue"; dot.style.left = p.x0 + "px"; dot.style.top = p.y0 + "px";
+        const ln = document.createElement("span"); ln.className = "mlead";
+        Object.assign(ln.style, {left:p.x0 + "px", top:p.y0 + "px", width:dist + "px", transform:`rotate(${Math.atan2(p.y - p.y0, p.x - p.x0)}rad)`});
+        plot.insertBefore(ln, plot.firstChild); plot.insertBefore(dot, plot.firstChild); }
     }
   }
 }
+window.addEventListener("resize", () => spreadMap(document.querySelector("#paper")));
+function fixMapLabels(root){ spreadMap(root); }
 function draftCardsHTML(D, E, list, print){
   return (list || D.T).map(t => `<article class="rc">
     <div class="rc-hd"><div class="rc-name">${teamBadge(t, print)}<div class="tm">${esc(t.team)}</div></div><div class="rc-sub"><span class="mg">@${esc(t.mgr)}</span><span class="gpa"><b>${t.gpa.toFixed(1)}</b> GPA</span></div></div>

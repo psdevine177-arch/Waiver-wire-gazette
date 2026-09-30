@@ -186,11 +186,10 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .davg{position:absolute;opacity:.7}.davg.ax{top:0;bottom:0;border-left:1.5px dashed var(--ink)}.davg.ay{left:0;right:0;border-top:1.5px dashed var(--ink)}
 .dql{position:absolute;font-family:var(--display);font-weight:800;font-size:clamp(12px,1.6vw,17px);text-transform:uppercase;letter-spacing:.04em;color:var(--muted);opacity:.7}
 .dql.tl{left:8px;top:6px}.dql.tr{right:8px;top:6px;text-align:right}.dql.bl{left:8px;bottom:6px}.dql.br{right:8px;bottom:6px;text-align:right}
-.md{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--ink);border:2px solid var(--paper);transform:translate(-50%,-50%);cursor:pointer;z-index:2}
-.md.heist{background:var(--red)}.md:hover,.md:focus-visible{width:17px;height:17px}
+.md{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--ink);border:2px solid var(--paper);transform:translate(-50%,-50%);z-index:2}
+.md.heist{background:var(--red)}
 .ml{position:absolute;transform:translate(0,-50%);margin-left:10px;font-family:var(--body);font-weight:600;font-size:clamp(11px,1.3vw,13.5px);white-space:nowrap;z-index:1;text-shadow:0 0 3px var(--paper),0 0 3px var(--paper),0 0 3px var(--paper);pointer-events:none}
 .ml.l{transform:translate(-100%,-50%);margin-left:-10px}
-.map-tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);padding:7px 10px;font-family:var(--mono);font-size:11.5px;max-width:280px;z-index:5;line-height:1.4}
 .cards{display:grid;grid-template-columns:repeat(var(--cc,4),minmax(0,1fr));gap:14px}
 @media (max-width:1100px){.cards{grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}}
 .rc{border:1px solid var(--ink);padding:12px 12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0;break-inside:avoid}
@@ -2335,13 +2334,13 @@ const heShe = p => p.pos === "DEF" ? "It" : "He";
 function stealPhrase(D, p){
   return D.auction ? `${p.name} at $${p.amount}, $${Math.round(p.diff)} under what this room paid at his ADP,` : `${p.name} at ${ord(p.no)} overall, ${Math.round(p.diff)} spots after his ADP,`;
 }
-function draftNote(D, t, r, seen){
-  const out = [], namedP = new Set();
+function draftNote(D, t, r, seen, quip){
+  const out = [], namedP = new Set(), kinds = [];
   const tag = t.tags[0];
   const byR = [...t.mine].sort((a,b)=>a.no-b.no);
   const bestAt = pos => t.mine.filter(p=>p.pos===pos && p.pts != null).sort((a,b)=>b.pts-a.pts)[0];
   const rot = (key, variants) => variants[((seen["_" + key] = (seen["_" + key] || 0) + 1) - 1) % variants.length];
-  const say = (key, variants, ...ps) => { const k = seen[key] || 0; if (k >= variants.length) return; seen[key] = k + 1; out.push(variants[k]); ps.forEach(p=>p && namedP.add(p.pid)); };
+  const say = (key, variants, ...ps) => { const k = seen[key] || 0; if (k >= variants.length) return; seen[key] = k + 1; out.push(variants[k]); kinds.push("tag"); ps.forEach(p=>p && namedP.add(p.pid)); };
   if (tag === "Zero RB") { const k = byR.findIndex(p=>p.pos==="RB"), rb1 = bestAt("RB");
     const firsts = [...new Set(byR.slice(0, k).map(p=>p.pos))], what = firsts.length === 1 ? pw(firsts[0],1) : "picks";
     say(tag, [`Opened with ${numw(k)} straight ${what} before taking a running back.${rb1 ? ` The RB1 is ${rb1.name} (Round ${rb1.round}), projected for ${f1(rb1.pts/GAMES)} a week.` : ""}`,
@@ -2375,12 +2374,35 @@ function draftNote(D, t, r, seen){
     : rot("reach", [`${reach.name} in Round ${reach.round} went ${rg} picks ahead of his ADP.`, `The ${reach.name} pick in Round ${reach.round} came ${rg} spots before his ADP.`, `Reached ${rg} picks early for ${reach.name} in Round ${reach.round}.`,
       `Round ${reach.round} was early for ${reach.name}, whose ADP sits ${rg} picks later.`, `Paid a Round ${reach.round} price for ${reach.name}, ${rg} picks ahead of where he usually goes.`])) : null;
   const prefer = steal && reach ? (steal.diff >= -reach.diff ? [sSent, rSent] : [rSent, sSent]) : [sSent || rSent];
-  for (const x of prefer) if (x && out.length < 2) out.push(x);
+  for (const x of prefer) if (x && out.length < 2) { out.push(x); kinds.push(x === sSent ? "steal" : "reach"); namedP.add((x === sSent ? steal : reach).pid); }
   if (t.weak && out.length < 3 && !namedP.has(t.weak.p.pid)) { const w = t.weak, pos = pw(w.pos,0), wk = f1(w.p.pts/GAMES), lo = w.rank === w.of ? "the lowest" : "the second-lowest";
-    out.push(rot("weak", [`The weak spot is ${pos}, where ${w.p.name} projects for ${wk} a week, ${lo} among the league's starters.`, `${Cap(pos)} is the concern: ${w.p.name} projects for ${wk} a week, ${lo} of any starter at the position.`, `At ${pos}, ${w.p.name}'s ${wk}-point weekly projection is ${lo} in the league.`, `Thin at ${pos}, where ${w.p.name} projects for ${wk} a week.`])); }
-  else if (t.bye.n >= 3 && out.length < 3 && !out.some(x=>x.includes(`Week ${t.bye.w} bye`))) out.push(rot("bye", [`${Cap(numw(t.bye.n))} projected starters share the Week ${t.bye.w} bye.`, `Week ${t.bye.w} will be a problem, with ${numw(t.bye.n)} starters on bye.`, `The Week ${t.bye.w} bye takes out ${numw(t.bye.n)} starters at once.`]));
-  if (!steal && !reach && out.length < 3) out.push(rot("even", [`Every pick went within ${D.auction ? "a few dollars" : "a round"} of ADP: no reaches, no steals${t.weak ? "" : ", and no obvious holes"}.`, `A by-the-book draft, with every pick close to ADP.`]));
-  if (out.length < 2) out.push(rot("sims", [`The simulations give it ${pct(t.odds)} to make the playoffs.`, `It makes the playoffs in ${pct(t.odds)} of the simulations.`, `Preseason playoff odds: ${pct(t.odds)}.`]));
+    kinds.push("weak"); out.push(rot("weak", [`The weak spot is ${pos}, where ${w.p.name} projects for ${wk} a week, ${lo} among the league's starters.`, `${Cap(pos)} is the concern: ${w.p.name} projects for ${wk} a week, ${lo} of any starter at the position.`, `At ${pos}, ${w.p.name}'s ${wk}-point weekly projection is ${lo} in the league.`, `Thin at ${pos}, where ${w.p.name} projects for ${wk} a week.`])); }
+  else if (t.bye.n >= 3 && out.length < 3 && !out.some(x=>x.includes(`Week ${t.bye.w} bye`)) && kinds.push("bye")) out.push(rot("bye", [`${Cap(numw(t.bye.n))} projected starters share the Week ${t.bye.w} bye.`, `Week ${t.bye.w} will be a problem, with ${numw(t.bye.n)} starters on bye.`, `The Week ${t.bye.w} bye takes out ${numw(t.bye.n)} starters at once.`]));
+  if (!steal && !reach && out.length < 3 && kinds.push("even")) out.push(rot("even", [`Every pick went within ${D.auction ? "a few dollars" : "a round"} of ADP: no reaches, no steals${t.weak ? "" : ", and no obvious holes"}.`, `A by-the-book draft, with every pick close to ADP.`]));
+  if (out.length < 2 && kinds.push("sims")) out.push(rot("sims", [`The simulations give it ${pct(t.odds)} to make the playoffs.`, `It makes the playoffs in ${pct(t.odds)} of the simulations.`, `Preseason playoff odds: ${pct(t.odds)}.`]));
+  if (quip) {
+    const tag0 = t.tags[0], nick = t.homer && NFLN[t.homer.nfl] ? NFLN[t.homer.nfl][1] : "";
+    const Q = {
+      "Zero RB": ["The running back room is more of a running back closet.", "Bold, as long as the receivers stay healthy."],
+      "Robust RB": ["When the injuries start, everyone will know whose number to call.", "The rest of the league will be asking about those backs by October."],
+      "Hero RB": ["That's a lot of weight for one pair of legs."],
+      "Late-Round QB": ["Patience at quarterback: rarely wrong, always a little smug."],
+      "Early QB": ["That's a premium price for a position the waiver wire often gives away."],
+      "Early TE": ["A premium price at the thinnest position in fantasy."],
+      "The Stack": ["When it hits, it hits twice."],
+      "The Homer": ["Season tickets not included.", nick ? `Hope the ${nick} feel the same way.` : "Loyalty is a strategy, technically."],
+      "Kicker Early": ["Kickers are a coin flip with a leg attached.", "Somewhere, a running back went to someone else because of this."],
+      "Defense Early": ["Defenses are the easiest position to stream, which makes this a lot of pick for a little edge."],
+      steal: [`The room let him slide, and ${t.team} noticed.`, "Somebody had to take him eventually."],
+      reach: ["ADP is a suggestion, apparently.", `The rest of the room was happy to wait. ${t.team} was not.`, "Conviction is a strategy. So is patience."],
+      weak: [`Expect to see ${t.team} working the waiver wire early.`, "Every contender has a flaw; this one is easy to spot."],
+      bye: [`Week ${t.bye.w} is going to take a lot of waiver claims and a little prayer.`, `Mark Week ${t.bye.w} on the calendar. In pencil.`],
+      even: ["Beige, but sturdy.", "The draft equivalent of a firm handshake."] };
+    const keep = out.slice(0, 2), kk = kinds.slice(0, 2);
+    // each quip line is used once per edition; if a pool is spent, try the next thing the note mentions
+    const key = kk.map(k => k === "tag" ? tag0 : k).find(k => Q[k] && (seen["q:" + k] || 0) < Q[k].length);
+    if (key) { const i = seen["q:" + key] = (seen["q:" + key] || 0) + 1; return [...keep, Q[key][i-1]].join(" "); }
+  }
   return out.slice(0,3).join(" ");
 }
 
@@ -2396,15 +2418,15 @@ function writeDraft(D, variant = 0){
   const run = A.run;
   if (run && run.short) { const s = run.short, m = run.most, p1 = s.p1, one = pw(run.pos,0), pl = pw(run.pos,1);
     tk.push({key:"run", b: pick(r, [`${Cap(one)} scarcity will drive the trade market.`, `The ${pl} went early, and not every team got enough.`]),
-      t: `${Cap(numw(run.count))} ${pl} went between picks ${run.from} and ${run.to}, and only ${numw(run.enough)} team${run.enough===1?"":"s"} came out of Round ${run.endRound} with ${run.need===1 ? "a starter" : numw(run.need)+" starters"} at the position. ${m.t.team} has ${numw(m.c)}. ${s.t.team} has ${s.c ? numw(s.c) : "none"}${p1 ? `; its top ${one} is ${p1.name}, a Round ${p1.round} pick projected for ${f1(p1.pts/GAMES)} points a week` : ""}. ` +
-        pick(r, [`Expect ${s.t.team} to shop for ${aw(one)} ${one} before October, and expect ${m.t.team} to know it has the leverage.`, `${s.t.team} will be looking to trade for one early, and ${m.t.team} is the obvious partner.`])}); }
+      t: `${Cap(numw(run.count))} ${pl} went between picks ${run.from} and ${run.to}, and only ${numw(run.enough)} team${run.enough===1?"":"s"} came out of Round ${run.endRound} with ${run.need===1 ? "a starter" : numw(run.need)+" starters"} at the position. ${m.t.team} has ${numw(m.c)}. ${s.t.team} has ${s.c ? numw(s.c) : "none"}${p1 ? `; its top ${one} is ${p1.name}, a Round ${p1.round} pick projected for ${f1(p1.pts/GAMES)} points a week${p1.pts/GAMES < 10 ? ", roughly what a stiff breeze scores" : ""}` : ""}. ` +
+        pick(r, [`Expect ${s.t.team} to shop for ${aw(one)} ${one} before October, and expect ${m.t.team} to let the phone ring a few times before answering.`, `${s.t.team} will be looking to trade for one early. ${m.t.team} will be looking to get overpaid.`])}); }
   // the best roster
   if (best && second) { const margin = best.st - second.st, cheap = best.val >= D.mVal;
     const steal = best.mine.filter(p=>p.diff != null && p.diff >= (D.auction ? 5 : 8)).sort((a,b)=>b.diff-a.diff)[0];
     let t = `Its starting lineup projects for ${fmtInt(best.st)} points${margin >= 5 ? `, ${fmtInt(margin)} more than anyone else` : `, narrowly ahead of ${second.team}`}${cheap ? `, and on average its picks ${D.auction ? "cost less than" : "came off the board later than"} ADP says they should` : ""}.`;
     if (steal) t += ` ${stealPhrase(D, steal)} is the clearest example.`;
-    if (best.weak) t += ` The weakness is ${pw(best.weak.pos,0)}, where ${best.weak.p.name} projects for ${f1(best.weak.p.pts/GAMES)} points a week, ${best.weak.rank === best.weak.of ? "the lowest of any team's starter at the position" : "second-lowest among the league's starters at the position"}.`;
-    else t += ` There isn't an obvious hole in it.`;
+    if (best.weak) t += ` The weakness is ${pw(best.weak.pos,0)}, where ${best.weak.p.name} projects for ${f1(best.weak.p.pts/GAMES)} points a week, ${best.weak.rank === best.weak.of ? "the lowest of any team's starter at the position" : "second-lowest among the league's starters at the position"}. Every contender has a flaw. ${poss(best.team)} plays ${pw(best.weak.pos,0)}.`;
+    else t += ` There isn't an obvious hole in it, which is annoying for everyone else.`;
     tk.push({key:"best", b: cheap ? `${best.team} built the best roster without overpaying for it.` : pick(r, [`${best.team} has the strongest lineup on paper.`, `${best.team} paid for the best roster in the league, and got it.`]), t}); }
   // dark horse
   const dh = T.filter(t=>t !== best && t !== second && !favs.includes(t) && t.val > D.mVal).sort((a,b)=>b.val-a.val)[0];
@@ -2412,31 +2434,31 @@ function writeDraft(D, variant = 0){
     let t = vals.length ? `It got more value against ADP than almost anyone, with ${listJoin(vals.map(p=>D.auction ? `${p.name} ($${p.amount})` : `${p.name} (Round ${p.round})`))} ${vals.length > 1 ? "both " : ""}${D.auction ? "bought well under the going rate" : "taken well after ADP"}.` : `Only the top two rosters got more value against ADP.`;
     let b;
     if (dh.bye.n >= 3 && dh.bye.hole >= 8) { const hole = Math.round(dh.bye.hole);
-      t += ` The problem is Week ${dh.bye.w}, when ${numw(dh.bye.n)} projected starters are on bye. That's roughly ${an(hole)} ${hole}-point hole for one week, and in a race this tight, one loss can be the difference between ${ord(D.P)} and ${ord(D.P+1)}.`;
+      t += ` The problem is Week ${dh.bye.w}, when ${numw(dh.bye.n)} projected starters are on bye. That's roughly ${an(hole)} ${hole}-point hole for one week, and in a race this tight, one loss can be the difference between ${ord(D.P)} and ${ord(D.P+1)}. That Sunday will take a lot of waiver claims and a little prayer.`;
       b = dh.bye.w >= 8 ? `${dh.team} is better than its record may look in November.` : `${dh.team} is better than its early record may look.`; }
-    else { const rk = D.byOdds.indexOf(dh) + 1; t += ` The simulations give it ${pct(dh.odds)} to make the playoffs, ${ord(rk)}-best in the league.`; b = pick(r, [`Don't overlook ${dh.team}.`, `${dh.team} is the value play.`]); }
+    else { const rk = D.byOdds.indexOf(dh) + 1; t += ` The simulations give it ${pct(dh.odds)} to make the playoffs, ${ord(rk)}-best in the league. Nobody is talking about ${dh.team} yet, which is usually how these things start.`; b = pick(r, [`Don't overlook ${dh.team}.`, `${dh.team} is the value play.`]); }
     tk.push({key:"dh", b, t}); }
   // one-team roster
   if (A.homer) { const h = A.homer, nick = NFLN[h.nfl][1];
-    tk.push({key:"homer", b:`${poss(h.t.team)} season is tied to the ${nick}.`, t:`${Cap(numw(h.n))} ${nick}${h.hasDef ? ", including the defense" : ""}. Concentration cuts both ways: a big ${nick} season lifts the whole roster, and a bad ${nick} week hits several starters at once.${h.byeW && h.byeStarters >= 2 ? ` The Week ${h.byeW} bye takes ${numw(h.byeStarters)} starters out together.` : ""}`}); }
+    tk.push({key:"homer", b:`${poss(h.t.team)} season is tied to the ${nick}.`, t:`${Cap(numw(h.n))} ${nick}${h.hasDef ? ", including the defense" : ""}. This isn't a fantasy roster so much as a season-ticket package. Concentration cuts both ways: a big ${nick} season lifts the whole roster, and a bad ${nick} week hits several starters at once.${h.byeW && h.byeStarters >= 2 ? ` The Week ${h.byeW} bye takes ${numw(h.byeStarters)} starters out together.` : ""}`}); }
   // the biggest reach (or overpay)
   const rx = A.reach || A.overpay;
   if (rx) { const tm = D.teams[rx.rid].team;
     if (!D.auction && rx.pRank && rx.pRank > rx.dRank + 2) tk.push({key:"reach", b:`${poss(tm)} ${pw(rx.pos,0)} pick needs to be right.`,
-      t:`${rx.name} went ${ord(rx.no)} overall with an ADP of ${Math.round(rx.adp)}, the largest reach of the draft. ${heShe(rx)} was the ${rx.dRank === 1 ? "first" : ord(rx.dRank)} ${pw(rx.pos,0)} taken, so the pick makes sense only if ${heShe(rx).toLowerCase()} finishes ${rx.dRank === 1 ? "as the top" : `as a top-${numw(rx.dRank)}`} ${pw(rx.pos,0)}. The projections have ${rx.pos === "DEF" ? "it" : "him"} ${ord(rx.pRank)}.`});
+      t:`${rx.name} went ${ord(rx.no)} overall with an ADP of ${Math.round(rx.adp)}, the largest reach of the draft. ${heShe(rx)} was the ${rx.dRank === 1 ? "first" : ord(rx.dRank)} ${pw(rx.pos,0)} taken, so the pick makes sense only if ${heShe(rx).toLowerCase()} finishes ${rx.dRank === 1 ? "as the top" : `as a top-${numw(rx.dRank)}`} ${pw(rx.pos,0)}. The projections have ${rx.pos === "DEF" ? "it" : "him"} ${ord(rx.pRank)}. Bold of ${tm} to disagree with math.`});
     else if (D.auction) tk.push({key:"reach", b:`${tm} paid a premium for ${rx.name}.`, t:`$${rx.amount} is $${Math.round(-rx.diff)} more than this room paid for anyone else at his ADP, the biggest overpay of the auction. That money had to come from somewhere, and ${poss(tm)} bench shows where.`});
-    else tk.push({key:"reach", b:`${tm} paid up for ${rx.name}.`, t:`${heShe(rx)} went ${ord(rx.no)} overall against an ADP of ${Math.round(rx.adp)}, the largest reach of the draft.${rx.pRank ? ` The projections rank ${rx.pos === "DEF" ? "it" : "him"} ${ord(rx.pRank)} among ${pw(rx.pos,1)}, so the player is real. The question is what else was still on the board at ${ord(rx.no)}.` : ""}`}); }
+    else tk.push({key:"reach", b:`${tm} paid up for ${rx.name}.`, t:`${heShe(rx)} went ${ord(rx.no)} overall against an ADP of ${Math.round(rx.adp)}, the largest reach of the draft.${rx.pRank ? ` The projections rank ${rx.pos === "DEF" ? "it" : "him"} ${ord(rx.pRank)} among ${pw(rx.pos,1)}, so the player is real. The question is what else was still on the board at ${ord(rx.no)}. The answer, for the record, was plenty.` : ""}`}); }
   if (A.kicker) { const k = A.kicker;
-    tk.push({key:"k", b:`${k.team} took the first kicker in Round ${k.p.round}.`, t:`${k.p.name} went ${ord(k.p.no)} overall. The next kicker lasted until ${ord(k.next.no)}. Kicker scoring is among the least predictable in fantasy week to week, which is why most drafts leave the position for the last two rounds.`}); }
-  if (D.auction && A.unspent) tk.push({key:"money", b:`${A.unspent.team} left money on the table.`, t:`It finished with $${A.unspent.left} of its $${A.unspent.budget} budget unspent. In an auction, unspent money is value the roster never received.`});
+    tk.push({key:"k", b:`${k.team} took the first kicker in Round ${k.p.round}.`, t:`${k.p.name} went ${ord(k.p.no)} overall. The next kicker lasted until ${ord(k.next.no)}. Kicker scoring is among the least predictable in fantasy week to week, which is why most drafts leave the position for the last two rounds. ${k.team} did not wait.`}); }
+  if (D.auction && A.unspent) tk.push({key:"money", b:`${A.unspent.team} left money on the table.`, t:`It finished with $${A.unspent.left} of its $${A.unspent.budget} budget unspent. In an auction, unspent money is value the roster never received. It's the fantasy version of leaving a restaurant hungry with cash in your pocket.`});
   const picks5 = tk.slice(0, 5);
   // opening
   const mid = T.filter(t=>t.odds >= .3 && t.odds < .7).length, thin = T.filter(t=>t.grades[0].z <= -1).length;
   const shape = [favs.length >= 2 ? `a clear top ${numw(favs.length)}` : favs.length === 1 ? "one clear favorite" : "no clear favorite"];
   if (mid >= 3) shape.push("a crowded middle");
   if (thin >= 2) shape.push("a few rosters that will need the waiver wire early");
-  const opener = pick(r, ["Drafts don't decide seasons, but they set the terms.", "A draft can't win a league, but it can tell you who has the easier path.", "Nobody has won anything yet, but the draft set the terms for the season."]);
-  const body = [{t:`${opener} This one produced ${listJoin(shape)}. ${Cap(numw(picks5.length))} things stood out.`}, ...picks5];
+  const opener = pick(r, ["Drafts don't decide seasons, but they do decide who spends the next four months defending themselves in the group chat.", "A draft can't win a league, but it can tell you who has the easier path, and who is about to spend a lot of time on the waiver wire.", "Nobody has won anything yet, but the draft set the terms for the season, and a few managers already owe the group chat an explanation."]);
+  const body = [{t:`${opener} This draft produced ${listJoin(shape)}. ${Cap(numw(picks5.length))} things stood out.`}, ...picks5];
   // what to watch
   const w = [], h = D.headliner;
   const top2 = D.byOdds.slice(0,2);
@@ -2450,7 +2472,7 @@ function writeDraft(D, variant = 0){
   const left = D.P - favs.length, band = T.filter(t=>!favs.includes(t) && t.odds >= .25 && t.odds < .95).sort((a,b)=>a.odds-b.odds);
   if (left > 0 && band.length > left) watch += ` The race for the last ${left === 1 ? "spot" : numw(left) + " spots"} is open: ${numw(band.length)} teams sit between ${pct(band[0].odds)} and ${pct(band[band.length-1].odds)}.`;
   const [fa, fb] = [...D.T].sort((a,b)=>b.first-a.first || b.odds-a.odds);
-  watch += ` My pick for the final is ${fa.team} over ${fb.team}${dh && dh !== fa && dh !== fb ? `, with ${dh.team} the team most likely to get in the way` : ""}.`;
+  watch += ` My pick for the final is ${fa.team} over ${fb.team}${dh && dh !== fa && dh !== fb ? `, with ${dh.team} the team most likely to get in the way` : ""}. ${pick(r, ["I reserve the right to be wrong by Week 3.", "Screenshot this, and please don't bring it up in December."])}`;
   body.push({b:"What to watch.", t:watch.trim()});
   // headline + dek
   const hp = [favs.length >= 2 ? `${Cap(numw(favs.length))} Contenders` : favs.length === 1 ? "One Favorite" : "A Wide-Open Field"];
@@ -2462,8 +2484,8 @@ function writeDraft(D, variant = 0){
     : `No roster stands clearly above the rest. What each draft got right, and where each one is exposed.`;
   const next = h ? `Week 1 headliner: ${h.a.team} vs. ${h.b.team}, projected ${f1(h.a.weekly)} to ${f1(h.b.weekly)}.` : "";
   // report card notes
-  const seen = {}, noteOrder = [...T].sort((a,b)=>((D.picks.find(p=>p.rid===a.rid)||{}).no||999)-((D.picks.find(p=>p.rid===b.rid)||{}).no||999));
-  const notes = Object.fromEntries(noteOrder.map(t=>[t.rid, draftNote(D, t, r, seen)]));
+  const seen = {}, noteOrder = [...T].sort((a,b)=>b.gpa-a.gpa || b.st-a.st);
+  const notes = Object.fromEntries(noteOrder.map((t,i)=>[t.rid, draftNote(D, t, r, seen, i % 2 === 0)]));
   // The Hot Take: Rex is allowed to be loud, as long as it's about something that happened
   const rexP = [];
   if (rx) { const tm = D.teams[rx.rid].team;
@@ -2500,8 +2522,7 @@ function draftMapHTML(D){
   h += `<div class="davg ax" style="left:${X(D.mVal)}%"></div><div class="davg ay" style="top:${Y(D.mSt)}%"></div>`;
   h += `<div class="dql tl">${QUADS.bought}</div><div class="dql tr">${QUADS.heist}</div><div class="dql bl">${QUADS.crime}</div><div class="dql br">${QUADS.sneaky}</div>`;
   T.forEach((t,i) => { const x = X(t.val), y = Y(t.st), left = x > 72;
-    const tip = `${t.team}: ${QUADS[t.quad]} · GPA ${t.gpa.toFixed(1)} · lineup ${fmtInt(t.st)} pts · ${valStr(D, t.val)} vs ADP`;
-    h += `<div class="md ${t.quad}" style="left:${x}%;top:${y}%" data-i="${i}" tabindex="0" title="${esc(tip)}"></div><div class="ml ${left?"l":""}" style="left:${x}%;top:${y}%">${esc(t.team)}</div>`; });
+    h += `<div class="md ${t.quad}" style="left:${x}%;top:${y}%"></div><div class="ml ${left?"l":""}" style="left:${x}%;top:${y}%">${esc(t.team)}</div>`; });
   h += `</div><div class="dmap-x">Value vs ADP, ${D.auction ? "dollars" : "net picks"} →</div></div>`;
   return h;
 }
@@ -2611,8 +2632,8 @@ function renderDraft(){
   const split = hot || lm ? `<section class="section split">${hot ? `<div>${hot}</div>` : ""}<div>${lm || `<div class="box"><h3>Bye-Week Landmines</h3><p class="empty">No team loses three or more projected starters to a single bye week.</p></div>`}</div></section>` : "";
   const map = `<section class="section"><h2 class="sec-h">The Draft Map <small>HOW GOOD · HOW CHEAP</small></h2>
     <p class="sec-note">Up means a stronger projected starting lineup. Right means the team ${D.auction ? "paid less than this draft's going rate for its players' ADP" : "drafted players later than ADP says they usually go"}. The dashed lines are the league average.</p>
-    <div class="map-wrap">${draftMapHTML(D)}<div class="map-tip" hidden></div></div></section>`;
-  const cardOrder = [...D.T].sort((a,b)=>((D.picks.find(p=>p.rid===a.rid)||{}).no||999)-((D.picks.find(p=>p.rid===b.rid)||{}).no||999));
+    <div class="map-wrap">${draftMapHTML(D)}</div></section>`;
+  const cardOrder = [...D.T].sort((a,b)=>b.gpa-a.gpa || b.st-a.st);
   const cards = `<section class="section"><h2 class="sec-h">Report Cards <small>GRADED AGAINST THIS LEAGUE</small></h2>
     <div class="cards" style="--cc:${[5,4,3].find(c=>D.n % c === 0) || (D.n % 5 >= D.n % 4 ? 5 : 4)}">${draftCardsHTML(D, E, cardOrder)}</div></section>`;
   const board = `<section class="section"><h2 class="sec-h">The Draft Board <small>${D.auction ? "AUCTION · BY PRICE" : `${D.rounds} ROUNDS · ${esc(String(D.draftType).toUpperCase())}`}</small></h2>
@@ -2620,12 +2641,6 @@ function renderDraft(){
   paper.innerHTML = banner + flag + ticker + `<div class="front">${lead}${rail}</div>` + map + cards + split + board + jumpNav(0) + foot;
   requestAnimationFrame(() => fixMapLabels(paper));
 }
-// map tooltips
-document.addEventListener("pointerover", e => { const d = e.target.closest && e.target.closest("#paper .md"); const wrap = d && d.closest(".map-wrap"); if (!wrap) return;
-  const tip = wrap.querySelector(".map-tip"); tip.textContent = d.getAttribute("title"); tip.hidden = false;
-  const wr = wrap.getBoundingClientRect(), dr = d.getBoundingClientRect();
-  tip.style.left = Math.max(4, Math.min(dr.left - wr.left + 14, wr.width - tip.offsetWidth - 4)) + "px"; tip.style.top = (dr.top - wr.top + 16) + "px"; });
-document.addEventListener("pointerout", e => { if (e.target.closest && e.target.closest("#paper .md")) { const t = document.querySelector("#paper .map-tip"); if (t) t.hidden = true; } });
 
 function npDraftHTML(D, E){
   const name = gazetteName(D);
@@ -2638,7 +2653,7 @@ function npDraftHTML(D, E){
   const odds = `<table class="np-tab"><thead><tr><th></th><th>Team</th><th>Proj</th><th>Playoffs</th></tr></thead><tbody>${D.byOdds.map((t,i)=>`<tr class="${i+1===D.P&&i<D.byOdds.length-1?"cut":""}"><td>${i+1}</td><td>${esc(t.team)}</td><td>${f1(t.weekly)}</td><td>${pct(t.odds)}</td></tr>`).join("")}</tbody></table>`;
   const r1 = D.auction ? [...D.picks].sort((a,b)=>b.amount-a.amount).slice(0, D.n) : D.picks.filter(p=>p.round===1);
   const cols = [5,4,3].find(c=>D.n % c === 0 && D.n / c <= 4) || (D.n > 12 ? 4 : 5), perPage = cols * 4;
-  const cardOrder = [...D.T].sort((a,b)=>((D.picks.find(p=>p.rid===a.rid)||{}).no||999)-((D.picks.find(p=>p.rid===b.rid)||{}).no||999));
+  const cardOrder = [...D.T].sort((a,b)=>b.gpa-a.gpa || b.st-a.st);
   const cardChunks = []; for (let i=0;i<cardOrder.length;i+=perPage) cardChunks.push(cardOrder.slice(i,i+perPage));
   const perBoard = 22, boardChunks = [];
   if (D.auction) boardChunks.push(null); else for (let rd=1; rd<=D.rounds; rd+=perBoard) boardChunks.push([rd, Math.min(D.rounds, rd+perBoard-1)]);

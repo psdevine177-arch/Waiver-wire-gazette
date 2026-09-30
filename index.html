@@ -184,14 +184,24 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .dtick{position:absolute;font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
 .dtick.tx{top:100%;transform:translate(-50%,0);margin-top:6px}.dtick.ty{left:0;transform:translate(-100%,-50%);margin-left:-7px}
 .davg{position:absolute;opacity:.7}.davg.ax{top:0;bottom:0;border-left:1.5px dashed var(--ink)}.davg.ay{left:0;right:0;border-top:1.5px dashed var(--ink)}
-.dql{position:absolute;font-family:var(--display);font-weight:800;font-size:clamp(12px,1.6vw,17px);text-transform:uppercase;letter-spacing:.04em;color:var(--muted);opacity:.7}
+.dql{position:absolute;max-width:44%;line-height:1;font-family:var(--display);font-weight:800;font-size:clamp(12px,1.6vw,17px);text-transform:uppercase;letter-spacing:.04em;color:var(--muted);opacity:.7}
 .dql.tl{left:8px;top:6px}.dql.tr{right:8px;top:6px;text-align:right}.dql.bl{left:8px;bottom:6px}.dql.br{right:8px;bottom:6px;text-align:right}
-.md{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--ink);border:2px solid var(--paper);transform:translate(-50%,-50%);z-index:2}
-.md.heist{background:var(--red)}
+.bdg{position:relative;display:inline-grid;place-items:center;width:var(--bs,24px);height:var(--bs,24px);border-radius:50%;background:var(--ink);color:var(--paper);font-family:var(--mono);font-weight:600;font-size:calc(var(--bs,24px)*.44);line-height:1;flex:none;box-shadow:0 0 0 2px var(--paper);overflow:hidden}
+.bdg.heist{background:var(--red);box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--red)}
+.bdg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--tint)}
+.mpt{position:absolute;transform:translate(-50%,-50%);--bs:28px;display:block;line-height:0}
+.mkey{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(180px,42%),1fr));gap:8px 16px;padding:4px 16px 16px 34px;font-size:13.5px;font-weight:600}
+.mkey div{display:flex;gap:9px;align-items:center;min-width:0}
+.mkey span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mkey .bdg{--bs:24px}
+.rc-name{display:flex;gap:9px;align-items:center;min-width:0}
+.rc-name .bdg{--bs:30px}
+
 .ml{position:absolute;transform:translate(0,-50%);margin-left:10px;font-family:var(--body);font-weight:600;font-size:clamp(11px,1.3vw,13.5px);white-space:nowrap;z-index:1;text-shadow:0 0 3px var(--paper),0 0 3px var(--paper),0 0 3px var(--paper);pointer-events:none}
 .ml.l{transform:translate(-100%,-50%);margin-left:-10px}
 .cards{display:grid;grid-template-columns:repeat(var(--cc,4),minmax(0,1fr));gap:14px}
 @media (max-width:1100px){.cards{grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}}
+@media (max-width:560px){.mkey{padding-left:16px;font-size:13px}.mkey .bdg{--bs:22px}.mpt{--bs:24px}}
 .rc{border:1px solid var(--ink);padding:12px 12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0;break-inside:avoid}
 .rc-hd{display:grid;gap:4px;border-bottom:3px double var(--ink);padding-bottom:6px}
 .rc .tm{font-family:var(--display);font-weight:800;font-size:21px;text-transform:uppercase;line-height:1;text-wrap:balance}
@@ -234,6 +244,7 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .np-map .dmap-plot{height:640px}
 .np-map.sm .dmap-plot{height:420px}
 .np-map .dmap-y{visibility:hidden}
+.np-map .mkey{grid-template-columns:repeat(4,minmax(0,1fr));font-size:14px}
 .np-board .board-wrap,.np-board{border:2px solid var(--np-ink)}
 .np-board .board{min-width:0;grid-template-columns:34px repeat(var(--cols),minmax(0,1fr));font-size:13px}
 .np-board .bc{min-height:var(--rowh,60px);display:flex;flex-direction:column;justify-content:center}
@@ -2132,8 +2143,9 @@ function buildDraft(raw){
   const {league, users, rosters} = raw, players = raw.players || {};
   const userById = Object.fromEntries((users||[]).map(u=>[u.user_id,u]));
   const teams = {};
-  for (const r of rosters) { const u = userById[r.owner_id] || {};
-    teams[r.roster_id] = {rid:r.roster_id, team:(u.metadata && u.metadata.team_name) || u.display_name || `Team ${r.roster_id}`, mgr:u.display_name || "an unclaimed roster"}; }
+  for (const r of rosters) { const u = userById[r.owner_id] || {}, ta = u.metadata && u.metadata.avatar;
+    const avatar = ta && /^https:\/\//.test(ta) ? ta : u.avatar && /^[\w-]+$/.test(u.avatar) ? `https://sleepercdn.com/avatars/thumbs/${u.avatar}` : null;
+    teams[r.roster_id] = {rid:r.roster_id, team:(u.metadata && u.metadata.team_name) || u.display_name || `Team ${r.roster_id}`, mgr:u.display_name || "an unclaimed roster", avatar}; }
   const n = rosters.length;
   const D = {isDraft:true, week:0, leagueId:league.league_id, leagueName:league.name, season:league.season, n, teams, played:false};
   const draft = raw.draft;
@@ -2317,6 +2329,7 @@ function buildDraft(raw){
   const nSlots = Math.max(n, ...picks.map(p=>p.slot||0));
   const slotOwner = {}; for (let sl=1; sl<=nSlots; sl++) { const r1 = picks.find(p=>p.round===1 && p.slot===sl); slotOwner[sl] = +slot2rid[sl] || (r1 && r1.rid) || null; }
   const byStr = [...T].sort((a,b)=>b.st-a.st);
+  [...T].sort((a,b)=>b.gpa-a.gpa || b.st-a.st).forEach((t,i)=>{ t.no = i + 1; });
   const date = +draft.last_picked || +draft.start_time || null;
   return {...D, status:"ready", auction, draftType:draft.type || "snake", picks, total, rounds:R, T, byStr, byOdds, A, landmines, headliner, P, regLast, sims:N, hasByes, subjects:subjects.map(s=>s[0]),
     mSt, mVal, nSlots, slotOwner, date, played:true, unit: auction ? "$" : "picks"};
@@ -2509,7 +2522,10 @@ function niceTicks(lo, hi, want = 6){
   for (let v = a; v <= b + 1e-9; v += step) out.push(v);
   return out;
 }
-function draftMapHTML(D){
+// a team's badge: its Sleeper avatar, with its report-card number underneath as the fallback (printed pages always use the number)
+const teamBadge = (t, print) => `<span class="bdg ${t.quad}"><b>${t.no}</b>${!print && t.avatar ? `<img src="${esc(t.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</span>`;
+document.addEventListener("error", e => { const el = e.target; if (el && el.tagName === "IMG" && el.parentElement && el.parentElement.classList.contains("bdg")) el.remove(); }, true);
+function draftMapHTML(D, print){
   const T = D.T, xs = T.map(t=>t.val), ys = T.map(t=>t.st);
   const xr = Math.max(...xs, D.mVal) - Math.min(...xs, D.mVal) || 10, yr = Math.max(...ys) - Math.min(...ys) || 50;
   const xt = niceTicks(Math.min(...xs, D.mVal) - xr*.08, Math.max(...xs, D.mVal) + xr*.08), yt = niceTicks(Math.min(...ys) - yr*.14, Math.max(...ys) + yr*.14);
@@ -2521,9 +2537,9 @@ function draftMapHTML(D){
   for (const v of yt) h += `<div class="dg gy" style="top:${Y(v)}%"></div><div class="dtick ty" style="top:${Y(v)}%">${fmtInt(v)}</div>`;
   h += `<div class="davg ax" style="left:${X(D.mVal)}%"></div><div class="davg ay" style="top:${Y(D.mSt)}%"></div>`;
   h += `<div class="dql tl">${QUADS.bought}</div><div class="dql tr">${QUADS.heist}</div><div class="dql bl">${QUADS.crime}</div><div class="dql br">${QUADS.sneaky}</div>`;
-  T.forEach((t,i) => { const x = X(t.val), y = Y(t.st), left = x > 72;
-    h += `<div class="md ${t.quad}" style="left:${x}%;top:${y}%"></div><div class="ml ${left?"l":""}" style="left:${x}%;top:${y}%">${esc(t.team)}</div>`; });
+  [...T].sort((a,b)=>b.no-a.no).forEach(t => { h += `<span class="mpt" style="left:${X(t.val)}%;top:${Y(t.st)}%">${teamBadge(t, print)}</span>`; });
   h += `</div><div class="dmap-x">Value vs ADP, ${D.auction ? "dollars" : "net picks"} →</div></div>`;
+  h += `<div class="mkey">${[...T].sort((a,b)=>a.no-b.no).map(t=>`<div>${teamBadge(t, print)}<span>${esc(t.team)}</span></div>`).join("")}</div>`;
   return h;
 }
 // nudge overlapping map labels apart (runs after layout, on screen and before printing)
@@ -2546,9 +2562,9 @@ function fixMapLabels(root){
     }
   }
 }
-function draftCardsHTML(D, E, list){
+function draftCardsHTML(D, E, list, print){
   return (list || D.T).map(t => `<article class="rc">
-    <div class="rc-hd"><div class="tm">${esc(t.team)}</div><div class="rc-sub"><span class="mg">@${esc(t.mgr)}</span><span class="gpa"><b>${t.gpa.toFixed(1)}</b> GPA</span></div></div>
+    <div class="rc-hd"><div class="rc-name">${teamBadge(t, print)}<div class="tm">${esc(t.team)}</div></div><div class="rc-sub"><span class="mg">@${esc(t.mgr)}</span><span class="gpa"><b>${t.gpa.toFixed(1)}</b> GPA</span></div></div>
     <div class="rc-tags"><span class="quad ${t.quad}">${QUADS[t.quad]}</span>${t.tags.slice(0,2).filter(x=>x!=="Balanced" || t.tags.length===1).map(x=>`<span class="dtag">${esc(x)}</span>`).join("")}</div>
     <table class="subj">${t.grades.map(g=>{ const fig = g.key === "st" ? fmtInt(t.st) : g.key === "bn" ? fmtInt(t.bn) : g.key === "val" ? valStr(D, t.val).replace(/ picks?$/, "") : t.bye.n ? `${t.bye.n} · Wk ${t.bye.w}` : "none";
       return `<tr><td>${g.label}</td><td class="fig">${fig}</td><td class="lt">${g.letter}</td></tr>`; }).join("")}</table>
@@ -2677,7 +2693,7 @@ function npDraftHTML(D, E){
     <div class="np-inside">Inside: ${compact ? `Report Cards &amp; The Draft Map, p. 2 · The Hot Take, Bye-Week Landmines &amp; The Draft Board, p. 3` : `Report Cards, p. ${pCards}${cardChunks.length>1?`–${pMap-1}`:""} · The Draft Map, Bye-Week Landmines &amp; The Hot Take, p. ${pMap} · The Draft Board, p. ${pBoard}${boardChunks.length>1?`–${pBoard+boardChunks.length-1}`:""}`}</div>
   </div></div>`;
   const mapBlock = `<div class="np-sec">The Draft Map <small>up = stronger lineup · right = more value vs ADP</small></div>
-    <div class="map-wrap np-map${compact ? " sm" : ""}">${draftMapHTML(D)}</div>`;
+    <div class="map-wrap np-map${compact ? " sm" : ""}">${draftMapHTML(D, true)}</div>`;
   const opinion = `<div class="np-backtop">
       <div>${E.column ? `<div class="np-hot"><div class="np-sec inv">The Hot Take</div><h2 class="np-h2">${esc(E.column.headline)}</h2><div class="np-by">By ${esc(E.column.pundit)}</div><div class="np-body">${E.column.body.map(p=>`<p>${esc(p)}</p>`).join("")}</div></div>` : ""}</div>
       <div><div class="np-sec">Bye-Week Landmines</div>${D.landmines.length ? D.landmines.map(t=>`<div class="np-aw"><div class="np-lbl">${t.bye.n} starters · Week ${t.bye.w}</div><div class="np-who">${esc(t.team)}</div><div class="np-why">${esc(landmineText(t))}</div></div>`).join("") : `<div class="np-aw"><div class="np-why">No team loses three or more projected starters to a single bye week.</div></div>`}
@@ -2685,7 +2701,7 @@ function npDraftHTML(D, E){
     </div>`;
   const cardPages = cardChunks.map((ch,i)=>`<div class="np-page"><div class="np-in np-draft">${run(pCards+i,"Report Cards")}
     <div class="np-horo-hd"><div class="t">Report Cards</div><div class="by"><b>Graded against this league</b></div></div>
-    <div class="cards np-cards" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${draftCardsHTML(D, E, ch)}</div>${compact ? mapBlock : ""}</div></div>`);
+    <div class="cards np-cards" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${draftCardsHTML(D, E, ch, true)}</div>${compact ? mapBlock : ""}</div></div>`);
   const mapPage = `<div class="np-page"><div class="np-in np-draft">${run(pMap,"The Draft Map · Opinion")}${mapBlock}${opinion}</div></div>`;
   const boardPages = boardChunks.map((rows,i)=>`<div class="np-page"><div class="np-in np-draft">${run(pBoard+i, compact ? "Opinion · The Draft Board" : "The Draft Board")}${compact ? opinion : ""}
     <div class="np-sec">The Draft Board <small>${D.auction ? "auction · by price" : `rounds ${rows[0]}–${rows[1]}`}</small></div>

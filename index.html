@@ -281,6 +281,7 @@ table.stand{width:100%;border-collapse:collapse;font-family:var(--mono);font-siz
 .champ{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:center;border:3px solid var(--red);padding:14px 16px;margin-bottom:16px}
 .cav{position:relative;width:clamp(70px,10vw,104px);aspect-ratio:1;border-radius:50%;background:var(--po-fill);display:grid;place-items:center;color:var(--red-ink);font-family:var(--display);font-weight:900;font-size:clamp(26px,3.6vw,40px);box-shadow:0 0 0 3px var(--paper),0 0 0 6px var(--red);overflow:hidden}
 .cav img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cwr{width:clamp(78px,11vw,112px);aspect-ratio:1}.cwr svg{width:100%;height:100%;display:block;overflow:visible}
 .champ .t{font-family:var(--display);font-weight:900;font-size:clamp(24px,3.4vw,38px);text-transform:uppercase;line-height:.95}
 .champ .s{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px}
 .champ .score{font-family:var(--display);font-weight:900;font-size:clamp(36px,5.6vw,64px);line-height:.9;text-align:right;font-variant-numeric:tabular-nums}
@@ -2187,7 +2188,7 @@ function npPoster(M){
   const initials = B.tn(id).replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join("").toUpperCase() || "#1";
   return `<div class="np-page"><div class="np-in np-poster">
     <div class="pmast">${esc(gazetteName(M))} · Commemorative Poster</div>
-    <div class="prow">${laurel()}<div class="pseal">${esc(initials)}</div>${laurel("r")}</div>
+    <div class="prow">${laurel()}<div class="pseal">1</div>${laurel("r")}</div>
     <div class="pchamp">Champions</div>
     <div class="pteam">${esc(B.tn(id))}</div>
     <div class="pline">${esc(M.season)} · ${recStr(s)} · ${B.seedOf[id]} seed · ${f2(s.pf || 0)} points for</div>
@@ -3289,11 +3290,20 @@ function obitsHTML(E){
 function toiletHTML(M, E){
   return E.toilet && E.toilet.length ? `<section class="section"><h2 class="sec-h">The Toilet Bowl <small>CONSOLATION · ${esc(M.br.round.toUpperCase())}</small></h2><div class="tb">${E.toilet.map(t => `<div><b>${esc(t.kicker)}</b>${esc(t.text)}</div>`).join("")}</div></section>` : "";
 }
+// the champion's emblem: a laurel wreath around a "1", with the season underneath (no profile pictures outside the draft edition)
+const WREATH_SVG = (() => { let h = "", stems = "";
+  for (const sd of [1,-1]) { let stem = "";
+    for (let i = 0; i < 10; i++) { const d = 100 - i*16, phi = d * Math.PI/180, cx = 50 + sd*Math.cos(phi)*37, cy = 52 + Math.sin(phi)*37, tan = d - 90;
+      stem += (i ? "L" : "M") + cx.toFixed(1) + " " + cy.toFixed(1);
+      for (const off of [-1, 1]) { const ox = cx + sd*Math.cos(phi)*off*4.5, oy = cy + Math.sin(phi)*off*4.5, rot = sd > 0 ? tan + off*28 : 180 - tan - off*28;
+        h += `<ellipse cx="${ox.toFixed(1)}" cy="${oy.toFixed(1)}" rx="${(7.5 - i*.25).toFixed(1)}" ry="2.9" fill="url(#wwg-gold)" transform="rotate(${rot.toFixed(1)} ${ox.toFixed(1)} ${oy.toFixed(1)})"/>`; } }
+    stems += `<path d="${stem}" fill="none" stroke="#b8892a" stroke-width="1.4"/>`; }
+  return `<defs><linearGradient id="wwg-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9c7521"/><stop offset=".45" stop-color="#f0cf6a"/><stop offset="1" stop-color="#b8892a"/></linearGradient></defs>${stems}${h}<path d="M38 88 L50 84 L62 88 L58 94 L50 91 L42 94 Z" fill="#8f1d24"/>`; })();
+const wreath = season => `<svg class="wreath" viewBox="0 0 100 100" aria-hidden="true">${WREATH_SVG}<text x="50" y="62" text-anchor="middle" font-family="Big Shoulders Display,Impact,sans-serif" font-weight="900" font-size="44" fill="url(#wwg-gold)">1</text><text x="50" y="75" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="7" letter-spacing="1.2" fill="#d8ad45">${esc(String(season || ""))}</text></svg>`;
 function champBanner(M){
   const B = M.br; if (!B.champion) return "";
-  const id = B.champion, s = M.standings.find(x => +x.rid === id) || {}, av = B.avatarOf[id], g = M.games.find(x => +x.W.rid === id && x.br.kind === "final");
-  const initials = B.tn(id).replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join("").toUpperCase() || "#1";
-  return `<div class="champ"><div class="cav">${av ? `<img src="${esc(av)}" alt="" referrerpolicy="no-referrer">` : ""}<b>${esc(initials)}</b></div><div><div class="t">${esc(B.tn(id))}</div><div class="s">${M.season} Champions · ${recStr(s)} · ${f2(s.pf || 0)} PF</div></div>${g ? `<div class="score">${f2(g.W.pts)}<small>vs ${esc(g.L.team)} ${f2(g.L.pts)}</small></div>` : ""}</div>`;
+  const id = B.champion, s = M.standings.find(x => +x.rid === id) || {}, g = M.games.find(x => +x.W.rid === id && x.br.kind === "final");
+  return `<div class="champ"><div class="cwr">${wreath(M.season)}</div><div><div class="t">${esc(B.tn(id))}</div><div class="s">${M.season} Champions · ${recStr(s)} · ${f2(s.pf || 0)} PF</div></div>${g ? `<div class="score">${f2(g.W.pts)}<small>vs ${esc(g.L.team)} ${f2(g.L.pts)}</small></div>` : ""}</div>`;
 }
 function playoffTickerLabel(M, E, g){ const k = E.poLabel ? E.poLabel(g) : "Final"; return (g.br.kind === "place" && g.br.p === 5 ? `${k} · Round 1 losers` : g.br.kind === "place" && g.br.p === 3 ? `${k} · Semifinal losers` : k).toUpperCase(); }
 function renderPlayoffs(M, E, paper, P){

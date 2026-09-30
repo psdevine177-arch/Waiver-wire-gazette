@@ -620,13 +620,30 @@ async function loadSeasonProjections(league){
   const data = await getJSON(`/projections/nfl/${league.season}?season_type=regular&${posList.map(p=>"position[]="+p).join("&")}`, "https://api.sleeper.app");
   const rows = Array.isArray(data) ? data : Object.entries(data||{}).map(([player_id,stats])=>({player_id, stats}));
   const key = projKey(league), keys = adpKeys(league), out = {};
+  // one ADP list for the whole league (mixing a 1QB list into a superflex one misjudges quarterbacks)
+  const okAdp = v => isFinite(v) && v > 0 && v < 999;
+  const cover = k => rows.filter(r0 => r0 && r0.stats && okAdp(+r0.stats[k])).length;
+  const adpKey = keys.find(k => cover(k) >= 60) || keys.find(k => cover(k) > 0) || null;
+  // the league's own scoring applied to projected stats (6-point passing TDs, TE premium, first downs...)
+  const ss = league.scoring_settings || {}, OFF = ["QB","RB","WR","TE"];
+  const own = (st, pos) => { if (!OFF.includes(pos) || !["pass_yd","rush_yd","rec_yd","rec"].some(k => st[k] != null)) return null;
+    let t = 0; for (const [k, v] of Object.entries(st)) { const m = +ss[k]; if (m && isFinite(+v) && !/^(adp_|pts_|gp$|gs$|cmp_pct)/.test(k)) t += m * +v; }
+    const b = +ss["bonus_rec_" + pos.toLowerCase()]; if (b && st.rec) t += b * +st.rec;
+    return t; };
+  const cand = [];
   for (const row of rows) {
     if (!row || row.player_id == null) continue;
-    const s = row.stats || {};
+    const s = row.stats || {}, pos = normPos((row.player && row.player.position) || row.position || "");
     const pts = s[key] ?? s.pts_ppr ?? s.pts_half_ppr ?? s.pts_std;
-    let adp = null; for (const k of keys) { const v = +s[k]; if (isFinite(v) && v > 0 && v < 999) { adp = v; break; } }
-    if ((pts != null && isFinite(+pts)) || adp != null) out[row.player_id] = {pts: pts != null && isFinite(+pts) ? +pts : null, adp};
+    const adp = adpKey && okAdp(+s[adpKey]) ? +s[adpKey] : null;
+    const mine = own(s, pos);
+    if (mine != null && pts != null && +pts > 50) cand.push(mine / +pts);
+    if ((pts != null && isFinite(+pts)) || adp != null || mine != null) out[row.player_id] = {pts: pts != null && isFinite(+pts) ? +pts : null, adp, own: mine};
   }
+  // trust the league-scored numbers only if they look like fantasy points (guards against odd or partial scoring settings)
+  const med = cand.length >= 20 ? [...cand].sort((a,b) => a-b)[Math.floor(cand.length/2)] : 0, custom = med > .6 && med < 1.8;
+  for (const v of Object.values(out)) { if (custom && v.own != null) v.pts = v.own; delete v.own; }
+  Object.defineProperty(out, "_meta", {value: {adpKey, custom}, enumerable: false});
   return out;
 }
 async function fetchDraftRaw(league, status){
@@ -2310,6 +2327,30 @@ function buildDraft(raw){
   const dedicated = pos => slots.filter(s=>s===pos).length;
   const sf = isSuperflex(league);
   const order = [...slots].sort((a,b)=>(ELIG[a]||[a]).length-(ELIG[b]||[b]).length);
+  // how many starters each position needs across this league, with flex spots split by who usually fills them
+  const ss = league.scoring_settings || {}, tep = +ss.bonus_rec_te || 0, sixTD = +ss.pass_td >= 6, qbSlots = slots.filter(x=>x==="QB").length, twoQB = qbSlots >= 2;
+  const SHARE = {FLEX:{RB:.45,WR:.45,TE:.1}, WRRB_FLEX:{RB:.5,WR:.5}, REC_FLEX:{WR:.8,TE:.2}, SUPER_FLEX:{QB:.85,RB:.06,WR:.06,TE:.03}, IDP_FLEX:{DL:.34,LB:.33,DB:.33}};
+  const demand = {};
+  for (const x of slots) { const el = ELIG[x] || [x], sh = SHARE[x] || Object.fromEntries(el.map(p=>[normPos(p), 0]));
+    if (!SHARE[x]) el.forEach(p => sh[normPos(p)] += 1/el.length);
+    for (const [p, v] of Object.entries(sh)) demand[p] = (demand[p] || 0) + v*n; }
+  const posOfP = id => normPos((players[id] || [])[1] || "");
+  const byPos = {}; for (const [id, v] of Object.entries(SP)) { if (v.pts == null) continue; const p = posOfP(id); if (demand[p]) (byPos[p] = byPos[p] || []).push(v.pts); }
+  const repl = {}; for (const [p, a] of Object.entries(byPos)) { a.sort((x,y)=>y-x); repl[p] = a[Math.min(a.length-1, Math.round(demand[p]))]; }
+  const vorOf = (pos, pts) => pts == null || repl[pos] == null ? null : pts - repl[pos];
+  const vorAll = Object.entries(SP).map(([id, v]) => vorOf(posOfP(id), v.pts)).filter(x=>x!=null).sort((a,b)=>b-a);
+  const vorRank = v => v == null ? null : 1 + vorAll.filter(x=>x>v).length;
+  // positions this league's settings make worth more than a standard league does
+  const STD = {QB:1, RB:2.45, WR:2.45, TE:1.1};
+  const whyPos = pos => pos === "QB" && sf ? `this is a superflex league, where about ${Math.round(demand.QB)} quarterbacks start every week`
+    : pos === "QB" && twoQB ? `this league starts ${Math.round(demand.QB)} quarterbacks a week` : pos === "QB" && sixTD ? `passing touchdowns are worth six points here`
+    : pos === "TE" && tep ? `tight ends get ${tep} extra point${tep === 1 ? "" : "s"} per catch here`
+    : STD[pos] && demand[pos] >= STD[pos]*n*1.25 ? `this league starts about ${Math.round(demand[pos])} ${pw(pos,1)} a week` : null;
+  if (!auction) for (const p of picks) { if (p.diff == null || p.diff > -12) continue;
+    const why = whyPos(p.pos), vr = vorRank(vorOf(p.pos, p.pts));
+    if (why && vr != null && vr <= p.no + Math.max(3, Math.round(n/2))) { p.fit = {why, vr}; p.val = Math.max(p.val, 0); } }
+  const fmtBits = [`${n} teams`, sf ? "superflex" : twoQB ? "2QB" : null, (+ss.rec || 0) >= 1 ? "PPR" : (+ss.rec || 0) >= .5 ? "half PPR" : "standard", sixTD ? "6-pt pass TD" : null, tep ? "TE premium" : null, hasIDP(league) ? "IDP" : null].filter(Boolean);
+  const dynL = league.settings && +league.settings.type === 2;
 
   const T = Object.values(teams).map(t => {
     const mine = picks.filter(p=>p.rid===t.rid);
@@ -2329,7 +2370,9 @@ function buildDraft(raw){
     const firstR = pos => (mine.find(p=>p.pos===pos) || {}).round || 99;
     const tags = [];
     if (R >= 10 && hasSlot("RB")) { if (cnt("RB",5) === 0) tags.push("Zero RB"); else if (cnt("RB",2) === 1 && cnt("RB",5) === 1) tags.push("Hero RB"); else if (cnt("RB",5) >= 3) tags.push("Robust RB"); }
-    if (!sf && R >= 10 && hasSlot("QB")) { const q = firstR("QB"); if (q < 99 && q >= Math.max(9, Math.round(R*.6))) tags.push("Late-Round QB"); else if (q <= 2) tags.push("Early QB"); }
+    if ((sf || twoQB) && R >= 8) { const qs = mine.filter(p=>p.pos==="QB").sort((a,b)=>a.no-b.no);
+      if (qs.length <= 1) tags.push("One-QB Gamble"); else if (qs[1].round <= Math.max(4, Math.round(R*.35))) tags.push("QB Double-Up"); }
+    if (!sf && !twoQB && R >= 10 && hasSlot("QB")) { const q = firstR("QB"); if (q < 99 && q >= Math.max(9, Math.round(R*.6))) tags.push("Late-Round QB"); else if (q <= 2) tags.push("Early QB"); }
     if (R >= 10 && hasSlot("TE") && firstR("TE") <= 2) tags.push("Early TE");
     const qb = starters.find(p=>p.pos==="QB");
     const stackMate = qb && starters.find(p=>p !== qb && ["WR","TE"].includes(p.pos) && p.nfl && p.nfl === qb.nfl);
@@ -2341,7 +2384,7 @@ function buildDraft(raw){
     const k = mine.find(p=>p.pos==="K"), df = mine.find(p=>p.pos==="DEF");
     if (R >= 10 && k && k.round <= R-3) tags.push("Kicker Early");
     else if (R >= 10 && df && df.round <= R-5) tags.push("Defense Early");
-    const PRI = ["The Homer","Kicker Early","Zero RB","Early TE","Late-Round QB","Defense Early","The Stack","Hero RB","Robust RB","Early QB"];
+    const PRI = ["The Homer","Kicker Early","One-QB Gamble","Zero RB","Early TE","Late-Round QB","Defense Early","The Stack","Hero RB","Robust RB","QB Double-Up","Early QB"];
     tags.sort((a,b)=>PRI.indexOf(a)-PRI.indexOf(b));
     if (!tags.length) tags.push("Balanced");
     return {...t, mine, starters, bench, st, bn, val, bye, tags, homer, stackMate: stackMate ? {qb, mate:stackMate} : null, weekly: st/GAMES};
@@ -2371,7 +2414,7 @@ function buildDraft(raw){
 
   // awards
   const A = {};
-  const withDiff = picks.filter(p=>p.diff != null);
+  const withDiff = picks.filter(p=>p.diff != null && !p.fit);
   if (!auction) {
     const steal = [...withDiff].sort((a,b)=>b.diff-a.diff)[0]; if (steal && steal.diff >= 8) A.steal = steal;
     const reach = [...withDiff].sort((a,b)=>a.diff-b.diff)[0]; if (reach && reach.diff <= -12) A.reach = reach;
@@ -2452,7 +2495,7 @@ function buildDraft(raw){
   [...T].sort((a,b)=>b.gpa-a.gpa || b.st-a.st).forEach((t,i)=>{ t.no = i + 1; });
   const date = +draft.last_picked || +draft.start_time || null;
   return {...D, status:"ready", auction, draftType:draft.type || "snake", picks, total, rounds:R, T, byStr, byOdds, A, landmines, headliner, P, regLast, sims:N, hasByes, subjects:subjects.map(s=>s[0]),
-    mSt, mVal, nSlots, slotOwner, date, played:true, unit: auction ? "$" : "picks"};
+    mSt, mVal, nSlots, slotOwner, date, played:true, unit: auction ? "$" : "picks", fmt:{sf, twoQB, tep, sixTD, demand, dyn:dynL, line:fmtBits.join(" · "), adpKey:(SP._meta||{}).adpKey, custom:!!(SP._meta||{}).custom}};
 }
 
 /* ---------------- Draft edition: writers (analyst voice: a claim, the evidence, what it means) ---------------- */
@@ -2487,7 +2530,13 @@ function draftNote(D, t, r, seen, quip){
   else if (tag === "Early QB") { const qb = byR.find(p=>p.pos==="QB"), nth = D.picks.filter(p=>p.pos==="QB" && p.no<=qb.no).length;
     say(tag, [`Took ${qb.name} in Round ${qb.round}, the ${nth === 1 ? "first" : ord(nth)} quarterback off the board.`, `Invested early at quarterback with ${qb.name} in Round ${qb.round}.`], qb); }
   else if (tag === "Early TE") { const te = byR.find(p=>p.pos==="TE");
-    say(tag, [`Took ${te.name} in Round ${te.round}${te.diff != null && te.diff <= -12 && !D.auction ? `, ${Math.round(-te.diff)} picks ahead of his ADP` : ""}.`, `Spent a Round ${te.round} pick on tight end ${te.name}.`], te); }
+    say(tag, D.fmt.tep ? [`Took ${te.name} in Round ${te.round}. With tight ends getting extra points per catch, that's the right kind of early.`, `Spent a Round ${te.round} pick on tight end ${te.name}, which is how TE premium is supposed to be played.`]
+      : [`Took ${te.name} in Round ${te.round}${te.diff != null && te.diff <= -12 && !D.auction ? `, ${Math.round(-te.diff)} picks ahead of his ADP` : ""}.`, `Spent a Round ${te.round} pick on tight end ${te.name}.`], te); }
+  else if (tag === "QB Double-Up") { const [q1, q2] = byR.filter(p=>p.pos==="QB");
+    say(tag, [`Took ${q1.name} and ${q2.name} by Round ${q2.round}. In ${D.fmt.sf ? "superflex" : "a two-quarterback league"}, that's the job.`, `Two quarterbacks by Round ${q2.round}, ${q1.name} and ${q2.name}, which is how ${D.fmt.sf ? "superflex" : "a 2QB league"} is supposed to go.`], q1, q2); }
+  else if (tag === "One-QB Gamble") { const q = byR.find(p=>p.pos==="QB");
+    say(tag, D.fmt.sf ? [`Left the draft with ${q ? `one quarterback, ${q.name}` : "no quarterback at all"}. The superflex spot will go to a running back or receiver most weeks, and that usually means fewer points there than everyone else gets.`, `Only ${q ? "one quarterback" : "no quarterbacks"} on the roster in a superflex league. The waiver wire rarely has a starter waiting.`]
+      : [`Left the draft with ${q ? `one quarterback, ${q.name}` : "no quarterback at all"}, in a league that starts two. One of those spots is empty until the waiver wire finds someone.`, `Only ${q ? "one quarterback" : "no quarterbacks"} on a roster that has to start two.`], q); }
   else if (tag === "The Stack") { const s = t.stackMate, nick = NFLN[s.qb.nfl] ? NFLN[s.qb.nfl][1] : s.qb.nfl;
     say(tag, [`Paired ${s.qb.name} with his teammate ${s.mate.name}, a bet on the ${nick} offense.`, `Stacked ${s.qb.name} with ${s.mate.name}, so a big ${nick} week counts twice.`], s.qb, s.mate); }
   else if (tag === "The Homer") { const h = t.homer, nick = NFLN[h.nfl][1], st = t.starters.filter(p=>p.nfl===h.nfl).length;
@@ -2508,6 +2557,9 @@ function draftNote(D, t, r, seen, quip){
       `Round ${reach.round} was early for ${reach.name}, whose ADP sits ${rg} picks later.`, `Paid a Round ${reach.round} price for ${reach.name}, ${rg} picks ahead of where he usually goes.`])) : null;
   const prefer = steal && reach ? (steal.diff >= -reach.diff ? [sSent, rSent] : [rSent, sSent]) : [sSent || rSent];
   for (const x of prefer) if (x && out.length < 2) { out.push(x); kinds.push(x === sSent ? "steal" : "reach"); namedP.add((x === sSent ? steal : reach).pid); }
+  const fit = !reach && t.mine.filter(p=>p.fit && p.diff <= -15 && !namedP.has(p.pid)).sort((a,b)=>a.diff-b.diff)[0];
+  if (fit && out.length < 2) { const g = Math.round(-fit.diff); kinds.push("fit"); namedP.add(fit.pid);
+    out.push(rot("fit", [`${fit.name} went ${g} picks before his ADP in Round ${fit.round}, but ${fit.fit.why}. By this league's settings, the pick holds up.`, `ADP had ${fit.name} ${g} picks later, but ${fit.fit.why}, so Round ${fit.round} was fair.`])); }
   if (t.weak && out.length < 3 && !namedP.has(t.weak.p.pid)) { const w = t.weak, pos = pw(w.pos,0), wk = f1(w.p.pts/GAMES), lo = w.rank === w.of ? "the lowest" : "the second-lowest";
     kinds.push("weak"); out.push(rot("weak", [`The weak spot is ${pos}, where ${w.p.name} projects for ${wk} a week, ${lo} among the league's starters.`, `${Cap(pos)} is the concern: ${w.p.name} projects for ${wk} a week, ${lo} of any starter at the position.`, `At ${pos}, ${w.p.name}'s ${wk}-point weekly projection is ${lo} in the league.`, `Thin at ${pos}, where ${w.p.name} projects for ${wk} a week.`])); }
   else if (t.bye.n >= 3 && out.length < 3 && !out.some(x=>x.includes(`Week ${t.bye.w} bye`)) && kinds.push("bye")) out.push(rot("bye", [`${Cap(numw(t.bye.n))} projected starters share the Week ${t.bye.w} bye.`, `Week ${t.bye.w} will be a problem, with ${numw(t.bye.n)} starters on bye.`, `The Week ${t.bye.w} bye takes out ${numw(t.bye.n)} starters at once.`]));
@@ -2521,7 +2573,10 @@ function draftNote(D, t, r, seen, quip){
       "Hero RB": ["That's a lot of weight for one pair of legs."],
       "Late-Round QB": ["Patience at quarterback: rarely wrong, always a little smug."],
       "Early QB": ["That's a premium price for a position the waiver wire often gives away."],
-      "Early TE": ["A premium price at the thinnest position in fantasy."],
+      "Early TE": D.fmt.tep ? ["In TE premium, that isn't a reach. That's reading the rules."] : ["A premium price at the thinnest position in fantasy."],
+      "QB Double-Up": ["Boring, correct, and the reason this roster has a floor."],
+      "One-QB Gamble": [...(D.T.filter(x=>x.mine.filter(p=>p.pos==="QB").length >= 2).length >= D.n*.6 ? ["Bold, in a league where most teams have two."] : []), "The quarterback trade market is about to learn this team's name."],
+      fit: ["ADP comes from other leagues. This one has its own rules."],
       "The Stack": ["When it hits, it hits twice."],
       "The Homer": ["Season tickets not included.", nick ? `Hope the ${nick} feel the same way.` : "Loyalty is a strategy, technically."],
       "Kicker Early": ["Kickers are a coin flip with a leg attached.", "Somewhere, a running back went to someone else because of this."],
@@ -2781,7 +2836,7 @@ function renderDraft(){
     <p class="sec-note">Up means a stronger projected starting lineup. Right means the team ${D.auction ? "paid less than this draft's going rate for its players' ADP" : "drafted players later than ADP says they usually go"}. The dashed lines are the league average.</p>
     <div class="map-wrap">${draftMapHTML(D)}</div></section>`;
   const cardOrder = [...D.T].sort((a,b)=>b.gpa-a.gpa || b.st-a.st);
-  const cards = `<section class="section"><h2 class="sec-h">Report Cards <small>GRADED AGAINST THIS LEAGUE</small></h2>
+  const cards = `<section class="section"><h2 class="sec-h">Report Cards <small>GRADED FOR ${esc(D.fmt.line.toUpperCase())}</small></h2>${D.fmt.dyn ? `<p class="onote">Dynasty league: grades use this season's projections, so young players drafted for later years grade low for now.</p>` : ""}
     <div class="cards" style="--cc:${[5,4,3].find(c=>D.n % c === 0) || (D.n % 5 >= D.n % 4 ? 5 : 4)}">${draftCardsHTML(D, E, cardOrder)}</div></section>`;
   const board = `<section class="section"><h2 class="sec-h">The Draft Board <small>${D.auction ? "AUCTION · BY PRICE" : `${D.rounds} ROUNDS · ${esc(String(D.draftType).toUpperCase())}`}</small></h2>
     <div class="board-wrap">${draftBoardHTML(D)}</div>${boardLegend(D)}</section>`;
@@ -2831,7 +2886,7 @@ function npDraftHTML(D, E){
 </div>
     </div>`;
   const cardPages = cardChunks.map((ch,i)=>`<div class="np-page"><div class="np-in np-draft">${run(pCards+i,"Report Cards")}
-    <div class="np-horo-hd"><div class="t">Report Cards</div><div class="by"><b>Graded against this league</b></div></div>
+    <div class="np-horo-hd"><div class="t">Report Cards</div><div class="by"><b>Graded for ${esc(D.fmt.line)}</b></div></div>
     <div class="cards np-cards" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${draftCardsHTML(D, E, ch, true)}</div>${compact ? mapBlock : ""}</div></div>`);
   const mapPage = `<div class="np-page"><div class="np-in np-draft">${run(pMap,"The Draft Map · Opinion")}${mapBlock}${opinion}</div></div>`;
   const boardPages = boardChunks.map((rows,i)=>`<div class="np-page"><div class="np-in np-draft">${run(pBoard+i, compact ? "Opinion · The Draft Board" : "The Draft Board")}${compact ? opinion : ""}
